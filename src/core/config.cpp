@@ -19,6 +19,9 @@ JsonDocument BruceConfig::toJson() const {
     setting["tmz"] = tmz;
     setting["dst"] = dst;
     setting["clock24hr"] = clock24hr;
+#ifdef UI_COMPACT
+    setting["uiCompact"] = uiCompact;
+#endif
     setting["soundEnabled"] = soundEnabled;
     setting["soundVolume"] = soundVolume;
     setting["wifiAtStartup"] = wifiAtStartup;
@@ -189,6 +192,15 @@ void BruceConfig::fromFile(bool checkFS) {
         count++;
         log_e("Fail");
     }
+#ifdef UI_COMPACT
+    if (!setting["uiCompact"].isNull()) {
+        uiCompact = setting["uiCompact"].as<int>();
+        if (uiCompact < -1 || uiCompact > 1) uiCompact = -1;
+    } else {
+        count++; // saved back as -1, which still means "never touched"
+        log_e("Fail");
+    }
+#endif
     if (!setting["soundEnabled"].isNull()) {
         soundEnabled = setting["soundEnabled"].as<int>();
     } else {
@@ -541,6 +553,13 @@ void BruceConfig::setClock24Hr(bool value) {
     clock24hr = value;
     saveFile();
 }
+
+#ifdef UI_COMPACT
+void BruceConfig::setUiCompact(int value) {
+    uiCompact = value;
+    saveFile();
+}
+#endif
 
 void BruceConfig::setSoundEnabled(int value) {
     soundEnabled = value;

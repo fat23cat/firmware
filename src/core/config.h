@@ -42,6 +42,9 @@ public:
     float tmz = 0;
     bool dst = false;
     bool clock24hr = true;
+#ifdef UI_COMPACT
+    int uiCompact = -1; // -1 = never touched (follow UI_COMPACT_DEFAULT), 0/1 = explicit user choice
+#endif
     int soundEnabled = 1;
     int soundVolume = 100;
     int wifiAtStartup = 0;
@@ -133,6 +136,9 @@ public:
     void validateTmzValue();
     void setDST(bool value);
     void setClock24Hr(bool value);
+#ifdef UI_COMPACT
+    void setUiCompact(int value);
+#endif
     void setSoundEnabled(int value);
     void setSoundVolume(int value);
     void validateSoundEnabledValue();

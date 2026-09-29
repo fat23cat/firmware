@@ -8,6 +8,8 @@
 #include <interface.h> //for charging ischarging to print charging indicator
 #include <memory>
 
+#include "core/ui/compact.h"
+
 #define MAX_MENU_SIZE (int)(tftHeight / 25)
 
 // Send the ST7789 into or out of sleep mode
@@ -919,6 +921,9 @@ void drawSubmenu(int index, std::vector<Option> &options, const char *title) {
 }
 
 void drawStatusBar() {
+#ifdef UI_COMPACT
+    if (uiCompact()) return uiDrawStatusBar();
+#endif
     uint8_t bat = getBattery();
     if (bat > 0) drawBatteryStatus(bat);
 
@@ -1004,6 +1009,9 @@ void drawStatusBar() {
 }
 
 void drawMainBorder(bool clear) {
+#ifdef UI_COMPACT
+    if (uiCompact()) return uiDrawMainBorder(clear);
+#endif
     if (clear) {
         tft.drawPixel(0, 0, 0);
         tft.fillScreen(bruceConfig.bgColor);
