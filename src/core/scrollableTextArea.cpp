@@ -1,15 +1,18 @@
 #include "scrollableTextArea.h"
+
+#include "core/ui/compact.h"
 #define _scrollBuffer tft
 ScrollableTextArea::ScrollableTextArea(const String &title)
-    : firstVisibleLine{0}, _redraw{true}, _title(title), _fontSize(FP), _startX(BORDER_PAD_X),
-      _startY(BORDER_PAD_Y), _width(tftWidth - 2 * BORDER_PAD_X),
-      _height(tftHeight - 4 - BORDER_PAD_X - BORDER_PAD_Y) {
+    : firstVisibleLine{0}, _redraw{true}, _title(title), _fontSize(FP),
+      _startX(UIC(BORDER_PAD_X, cui::PAD)), _startY(UIC(BORDER_PAD_Y, cui::TOP)),
+      _width(UIC(tftWidth - 2 * BORDER_PAD_X, tftWidth - 2 * cui::PAD)),
+      _height(UIC(tftHeight - 4 - BORDER_PAD_X - BORDER_PAD_Y, tftHeight - 2 - cui::TOP)) {
     drawMainBorder();
 
     if (!_title.isEmpty()) {
         printTitle(_title);
         _startY = tft.getCursorY();
-        _height -= (_startY - BORDER_PAD_Y);
+        _height -= (_startY - UIC(BORDER_PAD_Y, cui::TOP));
     }
 
     setup();

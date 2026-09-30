@@ -103,11 +103,15 @@ void uiDrawStatusBar() {
     }
 }
 
+static int16_t s_titleBottom = cui::TOP; // where uiSubtitle() goes; reset by uiDrawMainBorder()
+
 void uiDrawMainBorder(bool clear) {
     if (clear) {
         tft.drawPixel(0, 0, 0);
         tft.fillScreen(bruceConfig.bgColor);
+        uiProgressReset(); // a new screen: the next progress bar starts clean
     }
+    s_titleBottom = cui::TOP;
     tft.setTextDatum(0);
     uiDrawStatusBar();
     // Leave the cursor at the first content row, so callers that print right away start below the bar.
@@ -279,6 +283,196 @@ void uiMenuTitle(const String &name, int16_t centerX, int16_t y) {
         name, centerX, y + LH * FM / 2, tftWidth - 2 * cui::PAD, MC_DATUM, FM, bruceConfig.priColor,
         bruceConfig.bgColor
     );
+}
+
+// ---------------------------------------------------------------------------------------------
+// Titles, message boxes, dialogs, progress, footnotes
+// ---------------------------------------------------------------------------------------------
+namespace {
+int16_t contentW() { return tftWidth - 2 * cui::PAD; }
+} // namespace
+
+void uiTitle(const String &title) {
+    String t = title;
+    t.toUpperCase();
+    const uint16_t bg = bruceConfig.bgColor;
+    tft.fillRect(cui::PAD, cui::TOP, contentW(), LH * FM, bg);
+    uint8_t size = uiDrawFit(t, tftWidth / 2, cui::TOP, contentW(), TC_DATUM, FM, bruceConfig.priColor, bg);
+    s_titleBottom = cui::TOP + LH * size;
+    tft.setCursor(0, s_titleBottom + 2);
+    tft.setTextSize(FP);
+}
+
+void uiSubtitle(const String &subtitle, bool withLine) {
+    // Right under the title if nothing was printed since uiTitle() left the cursor there; otherwise (stale
+    // title from another screen, or no title) assume an FM title, which matches the common layout.
+    const bool afterTitle = tft.getCursorY() == s_titleBottom + 2;
+    const int16_t y = (afterTitle ? s_titleBottom : cui::TOP + LH * FM) + 2;
+    tft.setTextSize(FP);
+    tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+    tft.fillRect(cui::PAD, y, contentW(), LH, bruceConfig.bgColor);
+    uiDrawText(uiTruncate(subtitle, contentW(), FP), tftWidth / 2, y, TC_DATUM);
+    int16_t next = y + LH + 1;
+    if (withLine) {
+        tft.drawFastHLine(cui::PAD, next, contentW(), bruceConfig.priColor);
+        next += 3;
+    }
+    tft.setCursor(0, next);
+}
+
+void uiStripe(const String &text, uint16_t fgcolor, uint16_t bgcolor) {
+    if (fgcolor == bgcolor && fgcolor == TFT_WHITE) fgcolor = TFT_BLACK; // as legacy
+
+    const int16_t boxX = cui::PAD, boxW = contentW();
+    const int16_t textW = boxW - 12;
+    const int16_t areaTop = cui::TOP, areaBottom = tftHeight - 3;
+
+    // FM for up to 3 lines (a toast, not a page), else FP up to 6 lines.
+    const UiTextBlock block = uiTextBlockLayout(text, textW, areaBottom - areaTop + 1 - 10, 3, 6);
+    const uint8_t size = block.size;
+    const std::vector<String> &lines = block.lines;
+    const int16_t pitch = block.pitch;
+    const int16_t boxH = lines.size() * pitch + 10;
+    const int16_t boxY = (areaTop + areaBottom + 1) / 2 - boxH / 2;
+
+    tft.drawPixel(0, 0, 0);
+    tft.fillRoundRect(boxX, boxY, boxW, boxH, 7, bgcolor);
+    tft.setTextSize(size);
+    tft.setTextColor(fgcolor, bgcolor);
+    int16_t y = boxY + 5 + (size == FP ? 1 : 0);
+    for (const String &line : lines) {
+        uiDrawText(line, tftWidth / 2, y, TC_DATUM);
+        y += pitch;
+    }
+}
+
+namespace {
+void drawDialogButton(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color, const char *text, bool inverted) {
+    const uint16_t bg = bruceConfig.bgColor;
+    if (inverted) {
+        tft.fillRoundRect(x, y, w, h, 4, color);
+    } else {
+        tft.fillRoundRect(x, y, w, h, 4, bg);
+        tft.drawRoundRect(x, y, w, h, 4, color);
+    }
+    tft.setTextSize(FP);
+    tft.setTextColor(inverted ? bg : color, inverted ? color : bg);
+    uiDrawText(uiTruncate(String(text), w - 4, FP), x + w / 2, y + (h - LH) / 2, TC_DATUM);
+}
+} // namespace
+
+int8_t uiMessage(
+    const char *message, const char *leftButton, const char *centerButton, const char *rightButton,
+    uint16_t color
+) {
+    const char *labels[3];
+    int8_t total = 0;
+    if (leftButton) labels[total++] = leftButton;
+    if (centerButton) labels[total++] = centerButton;
+    if (rightButton) labels[total++] = rightButton;
+
+    const int16_t btnH = 16;
+    const int16_t btnY = tftHeight - 3 - btnH + 1;
+    const int16_t areaTop = cui::TOP, areaBottom = (total ? btnY - 4 : tftHeight - 3);
+    const int16_t areaH = areaBottom - areaTop + 1;
+    const int16_t textW = contentW();
+
+    // Message: FM if every wrapped line fits the area, else FP (truncated with ".." if still too long).
+    const UiTextBlock block = uiTextBlockLayout(String(message), textW, areaH, 255, 255);
+    const std::vector<String> &lines = block.lines;
+    const int16_t pitch = block.pitch;
+    int16_t y = areaTop + (areaH - (int16_t)lines.size() * pitch) / 2;
+    tft.setTextSize(block.size);
+    tft.setTextColor(color, bruceConfig.bgColor);
+    for (const String &line : lines) {
+        uiDrawText(line, tftWidth / 2, y, TC_DATUM);
+        y += pitch;
+    }
+
+    const int16_t gap = 4;
+    const int16_t btnW = total ? (contentW() - (total - 1) * gap) / total : 0;
+    int8_t selected = 0;
+    bool redraw = true;
+    while (true) {
+        if (total > 0 && (check(PrevPress) || check(EscPress))) {
+            selected = (selected - 1 + total) % total;
+            redraw = true;
+        }
+        if (total > 0 && check(NextPress)) {
+            selected = (selected + 1) % total;
+            redraw = true;
+        }
+        if (check(SelPress)) break;
+
+        if (redraw) {
+            for (int8_t i = 0; i < total; i++) {
+                drawDialogButton(cui::PAD + i * (btnW + gap), btnY, btnW, btnH, color, labels[i], selected == i);
+            }
+            redraw = false;
+        }
+        delay(10);
+    }
+    return selected;
+}
+
+namespace {
+struct ProgressState {
+    bool active = false;
+    String msg;
+    size_t total = 0;
+    int pct = -1;
+    int barW = 0;
+} s_progress;
+} // namespace
+
+void uiProgressReset() { s_progress.active = false; }
+
+void uiProgress(int progress, size_t total, const String &message) {
+    const uint16_t pri = bruceConfig.priColor, bg = bruceConfig.bgColor;
+    const int16_t barX = cui::PAD, barY = tftHeight - 22, barH = 10, barOuterW = contentW();
+    const int barMaxW = barOuterW - 4;
+    const int16_t textY = tftHeight - 34;
+    const int16_t pctW = 4 * LW; // "100%"
+
+    int pct, barW; // overflow-safe: byte counts can exceed 21 MB, total can be 0
+    uiProgressValues(progress, total, barMaxW, pct, barW);
+
+    const bool start = !s_progress.active || message != s_progress.msg || total != s_progress.total ||
+                       pct < s_progress.pct;
+    if (start) {
+        tft.fillRect(cui::PAD - 3, cui::TOP, contentW() + 6, tftHeight - 3 - cui::TOP + 1, bg);
+        tft.setTextSize(FP);
+        tft.setTextColor(pri, bg);
+        uiDrawText(uiTruncate(message, contentW() - pctW - 4, FP), barX, textY, TL_DATUM);
+        tft.drawRect(barX, barY, barOuterW, barH, pri);
+        s_progress.active = true;
+        s_progress.msg = message;
+        s_progress.total = total;
+        s_progress.pct = -1;
+        s_progress.barW = 0;
+    }
+    if (barW > s_progress.barW) {
+        tft.fillRect(barX + 2 + s_progress.barW, barY + 2, barW - s_progress.barW, barH - 4, pri);
+        s_progress.barW = barW;
+    }
+    if (pct != s_progress.pct) {
+        tft.setTextSize(FP);
+        tft.setTextColor(pri, bg);
+        tft.fillRect(barX + barOuterW - pctW, textY, pctW, LH, bg);
+        uiDrawText(String(pct) + "%", barX + barOuterW, textY, TR_DATUM);
+        s_progress.pct = pct;
+    }
+}
+
+void uiFootnote(const String &text, bool centred) {
+    const int16_t y = tftHeight - 3 - LH + 1;
+    tft.setTextSize(FP);
+    tft.fillRect(cui::PAD, y, contentW(), LH, bruceConfig.bgColor); // a shorter text must not leave old chars
+    if (centred) {
+        uiDrawText(uiTruncate(text, contentW(), FP), tftWidth / 2, y, TC_DATUM);
+    } else {
+        uiDrawText(uiTruncate(text, contentW(), FP), tftWidth - cui::PAD, y, TR_DATUM);
+    }
 }
 
 #endif // UI_COMPACT

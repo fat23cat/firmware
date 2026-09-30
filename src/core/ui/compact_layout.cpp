@@ -28,6 +28,34 @@ int uiWheelItem(int index, int slot, int n) {
     return ((index + uiWheelOffset(slot)) % n + n) % n;
 }
 
+void uiProgressValues(int progress, size_t total, int barMaxW, int &pct, int &barW) {
+    uint64_t p = progress < 0 ? 0 : (uint64_t)progress;
+    if (total && p > total) p = total;
+    pct = total ? (int)(p * 100 / total) : 100;
+    barW = total ? (int)(p * (uint64_t)barMaxW / total) : barMaxW;
+}
+
+UiTextBlock uiTextBlockLayout(const String &text, int16_t maxW, int16_t maxH, uint8_t maxFmLines, uint8_t maxFpLines) {
+    UiTextBlock b;
+    const int16_t fmPitch = LH * FM, fpPitch = LH * FP + 2;
+    b.lines = uiWrap(text, maxW, FM);
+    int fmFit = fmPitch > 0 ? maxH / fmPitch : 0;
+    if (fmFit > maxFmLines) fmFit = maxFmLines;
+    if (!b.lines.empty() && (int)b.lines.size() <= fmFit) {
+        b.size = FM;
+        b.pitch = fmPitch;
+        return b;
+    }
+    int fpFit = fpPitch > 0 ? maxH / fpPitch : 0;
+    if (fpFit > maxFpLines) fpFit = maxFpLines;
+    if (fpFit < 1) fpFit = 1;
+    b.size = FP;
+    b.pitch = fpPitch;
+    b.lines = uiWrap(text, maxW, FP, fpFit);
+    if (b.lines.empty()) b.lines.push_back("");
+    return b;
+}
+
 uint16_t uiBlend565(uint16_t fg, uint16_t bg, uint16_t t) {
     if (t > 256) t = 256;
     const uint16_t u = 256 - t;

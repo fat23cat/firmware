@@ -178,6 +178,9 @@ std::vector<String> wrapText(const String &text, int maxCharsPerLine) {
 ** Description:   Display Red Stripe with information (supports multi-line text wrapping)
 ***************************************************************************************/
 void displayRedStripe(const String &text, uint16_t fgcolor, uint16_t bgcolor) {
+#ifdef UI_COMPACT
+    if (uiCompact()) return uiStripe(text, fgcolor, bgcolor);
+#endif
     // detect if not running in interactive mode -> show nothing onscreen and return immediately
     // if (server || isSleeping || isScreenOff) return; // webui is running
 
@@ -235,6 +238,9 @@ int8_t displayMessage(
     const char *message, const char *leftButton, const char *centerButton, const char *rightButton,
     uint16_t color
 ) {
+#ifdef UI_COMPACT
+    if (uiCompact()) return uiMessage(message, leftButton, centerButton, rightButton, color);
+#endif
 #ifdef HAS_SCREEN
     uint8_t oldTextDatum = tft.getTextDatum();
 #endif
@@ -376,7 +382,7 @@ void displayTextLine(const String &txt, bool waitKeyPress) {
 
 void setPadCursor(int16_t padx, int16_t pady) {
     for (int y = 0; y < pady; y++) tft.println();
-    tft.setCursor(padx * BORDER_PAD_X, tft.getCursorY());
+    tft.setCursor(padx * UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
 }
 
 void padprintf(int16_t padx, const char *format, ...) {
@@ -386,7 +392,7 @@ void padprintf(int16_t padx, const char *format, ...) {
     vsnprintf(buffer, sizeof(buffer), format, args);
     va_end(args);
 
-    tft.setCursor(padx * BORDER_PAD_X, tft.getCursorY());
+    tft.setCursor(padx * UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
     tft.printf("%s", buffer);
 }
 void padprintf(const char *format, ...) {
@@ -396,125 +402,131 @@ void padprintf(const char *format, ...) {
     vsnprintf(buffer, sizeof(buffer), format, args);
     va_end(args);
 
-    tft.setCursor(BORDER_PAD_X, tft.getCursorY());
+    tft.setCursor(UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
     tft.printf("%s", buffer);
 }
 
 void padprint(const String &s, int16_t padx) {
-    tft.setCursor(padx * BORDER_PAD_X, tft.getCursorY());
+    tft.setCursor(padx * UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
     tft.print(s);
 }
 void padprint(const char str[], int16_t padx) {
-    tft.setCursor(padx * BORDER_PAD_X, tft.getCursorY());
+    tft.setCursor(padx * UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
     tft.print(str);
 }
 void padprint(char c, int16_t padx) {
-    tft.setCursor(padx * BORDER_PAD_X, tft.getCursorY());
+    tft.setCursor(padx * UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
     tft.print(c);
 }
 void padprint(unsigned char b, int base, int16_t padx) {
-    tft.setCursor(padx * BORDER_PAD_X, tft.getCursorY());
+    tft.setCursor(padx * UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
     tft.print(b, base);
 }
 void padprint(int n, int base, int16_t padx) {
-    tft.setCursor(padx * BORDER_PAD_X, tft.getCursorY());
+    tft.setCursor(padx * UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
     tft.print(n, base);
 }
 void padprint(unsigned int n, int base, int16_t padx) {
-    tft.setCursor(padx * BORDER_PAD_X, tft.getCursorY());
+    tft.setCursor(padx * UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
     tft.print(n, base);
 }
 void padprint(long n, int base, int16_t padx) {
-    tft.setCursor(padx * BORDER_PAD_X, tft.getCursorY());
+    tft.setCursor(padx * UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
     tft.print(n, base);
 }
 void padprint(unsigned long n, int base, int16_t padx) {
-    tft.setCursor(padx * BORDER_PAD_X, tft.getCursorY());
+    tft.setCursor(padx * UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
     tft.print(n, base);
 }
 void padprint(long long n, int base, int16_t padx) {
-    tft.setCursor(padx * BORDER_PAD_X, tft.getCursorY());
+    tft.setCursor(padx * UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
     tft.print(n, base);
 }
 void padprint(unsigned long long n, int base, int16_t padx) {
-    tft.setCursor(padx * BORDER_PAD_X, tft.getCursorY());
+    tft.setCursor(padx * UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
     tft.print(n, base);
 }
 void padprint(double n, int digits, int16_t padx) {
-    tft.setCursor(padx * BORDER_PAD_X, tft.getCursorY());
+    tft.setCursor(padx * UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
     tft.print(n, digits);
 }
 
 void padprintln(const String &s, int16_t padx) {
     if (s.isEmpty()) {
-        tft.setCursor(padx * BORDER_PAD_X, tft.getCursorY());
+        tft.setCursor(padx * UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
         tft.println(s);
         return;
     }
 
     String buff;
     size_t start = 0;
-    int _maxCharsInLine = (tftWidth - (padx + 1) * BORDER_PAD_X) / (FP * LW);
+    int _maxCharsInLine = UIC(
+        (tftWidth - (padx + 1) * BORDER_PAD_X) / (FP * LW),
+        (tftWidth - (padx + 1) * cui::PAD) / (tft.getTextSize() * LW)
+    );
 
     // automatically split into multiple lines
     while (!(buff = s.substring(start, start + _maxCharsInLine)).isEmpty()) {
-        tft.setCursor(padx * BORDER_PAD_X, tft.getCursorY());
+        tft.setCursor(padx * UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
         tft.println(buff);
         start += buff.length();
     }
 }
 void padprintln(const char str[], int16_t padx) {
     if (strcmp(str, "") == 0) {
-        tft.setCursor(padx * BORDER_PAD_X, tft.getCursorY());
+        tft.setCursor(padx * UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
         tft.println(str);
         return;
     }
 
     String buff;
     size_t start = 0;
-    int _maxCharsInLine = (tftWidth - (padx + 1) * BORDER_PAD_X) / (FP * LW);
+    int _maxCharsInLine = UIC(
+        (tftWidth - (padx + 1) * BORDER_PAD_X) / (FP * LW),
+        (tftWidth - (padx + 1) * cui::PAD) / (tft.getTextSize() * LW)
+    );
 
     // automatically split into multiple lines
     while (!(buff = String(str).substring(start, start + _maxCharsInLine)).isEmpty()) {
-        tft.setCursor(padx * BORDER_PAD_X, tft.getCursorY());
+        tft.setCursor(padx * UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
         tft.println(buff);
         start += buff.length();
     }
 }
 void padprintln(char c, int16_t padx) {
-    tft.setCursor(padx * BORDER_PAD_X, tft.getCursorY());
+    tft.setCursor(padx * UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
     tft.println(c);
 }
 void padprintln(unsigned char b, int base, int16_t padx) {
-    tft.setCursor(padx * BORDER_PAD_X, tft.getCursorY());
+    tft.setCursor(padx * UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
     tft.println(b, base);
 }
 void padprintln(int n, int base, int16_t padx) {
-    tft.setCursor(padx * BORDER_PAD_X, tft.getCursorY());
+    tft.setCursor(padx * UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
     tft.println(n, base);
 }
 void padprintln(unsigned int n, int base, int16_t padx) {
-    tft.setCursor(padx * BORDER_PAD_X, tft.getCursorY());
+    tft.setCursor(padx * UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
     tft.println(n, base);
 }
 void padprintln(long n, int base, int16_t padx) {
-    tft.setCursor(padx * BORDER_PAD_X, tft.getCursorY());
+    tft.setCursor(padx * UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
     tft.println(n, base);
 }
 void padprintln(unsigned long n, int base, int16_t padx) {
-    tft.setCursor(padx * BORDER_PAD_X, tft.getCursorY());
+    tft.setCursor(padx * UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
     tft.println(n, base);
 }
 void padprintln(long long n, int base, int16_t padx) {
-    tft.setCursor(padx * BORDER_PAD_X, tft.getCursorY());
+    tft.setCursor(padx * UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
     tft.println(n, base);
 }
 void padprintln(unsigned long long n, int base, int16_t padx) {
-    tft.setCursor(padx * BORDER_PAD_X, tft.getCursorY());
+    tft.setCursor(padx * UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
     tft.println(n, base);
 }
 void padprintln(double n, int digits, int16_t padx) {
-    tft.setCursor(padx * BORDER_PAD_X, tft.getCursorY());
+    tft.setCursor(padx * UIC(BORDER_PAD_X, cui::PAD), tft.getCursorY());
     tft.println(n, digits);
 }
 
@@ -762,6 +774,9 @@ int loopOptions(
 ** Dependencia: prog_handler =>>    0 - Flash, 1 - LittleFS
 ***************************************************************************************/
 void progressHandler(int progress, size_t total, const String &message) {
+#ifdef UI_COMPACT
+    if (uiCompact()) return uiProgress(progress, total, message);
+#endif
     int barWidth = map(progress, 0, total, 0, tftWidth - 40);
     if (barWidth < 3) {
         tft.fillRect(6, 27, tftWidth - 12, tftHeight - 33, bruceConfig.bgColor);
@@ -1052,6 +1067,9 @@ void drawMainBorderWithTitle(const String &title, bool clear) {
 }
 
 void printTitle(const String &title) {
+#ifdef UI_COMPACT
+    if (uiCompact()) return uiTitle(title);
+#endif
     String t = title;
     t.toUpperCase();
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
@@ -1070,6 +1088,9 @@ void printTitle(const String &title) {
 }
 
 void printSubtitle(const String &subtitle, bool withLine) {
+#ifdef UI_COMPACT
+    if (uiCompact()) return uiSubtitle(subtitle, withLine);
+#endif
     int16_t cursorX = (tftWidth - (subtitle.length() * FP * LW)) / 2;
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
     tft.setTextSize(FP);
@@ -1087,11 +1108,17 @@ void printSubtitle(const String &subtitle, bool withLine) {
 }
 
 void printFootnote(const String &text) {
+#ifdef UI_COMPACT
+    if (uiCompact()) return uiFootnote(text, false);
+#endif
     tft.setTextSize(FP);
     tft.drawRightString(text, tftWidth - BORDER_PAD_X, tftHeight - BORDER_PAD_X - FP * LH, SMOOTH_FONT);
 }
 
 void printCenterFootnote(const String &text) {
+#ifdef UI_COMPACT
+    if (uiCompact()) return uiFootnote(text, true);
+#endif
     tft.fillRect(10, tftHeight - BORDER_PAD_X - FP * LH, tftWidth - 20, FP * LH, bruceConfig.bgColor);
     tft.setTextSize(FP);
     tft.drawCentreString(text, tftWidth / 2, tftHeight - BORDER_PAD_X - FP * LH, SMOOTH_FONT);

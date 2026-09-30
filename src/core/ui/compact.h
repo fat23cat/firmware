@@ -62,6 +62,18 @@ int uiListWindowFirst(int index, int n, int visible, int prevFirst, bool reset);
 int uiWheelSlotCount(int n);
 int uiWheelOffset(int slot); // 0, +1, -1, +2, -2
 int uiWheelItem(int index, int slot, int n);
+// Progress values from byte counts, overflow-safe (progress can exceed INT_MAX / 100) and total == 0 safe:
+// pct in 0..100, barW in 0..barMaxW. Negative progress counts as 0; progress > total is clamped.
+void uiProgressValues(int progress, size_t total, int barMaxW, int &pct, int &barW);
+// Text block layout for message boxes and dialogs: FM if every wrapped FM line fits the width and at most
+// maxFmLines of them fit maxH (pitch LH*FM); otherwise FP (pitch LH*FP + 2), at most maxFpLines and as many as
+// fit maxH, the last one ending with ".." when text is dropped. '\n' starts a new line in both sizes.
+struct UiTextBlock {
+    uint8_t size;
+    int16_t pitch;
+    std::vector<String> lines;
+};
+UiTextBlock uiTextBlockLayout(const String &text, int16_t maxW, int16_t maxH, uint8_t maxFmLines, uint8_t maxFpLines);
 // Mixes `fg` towards `bg`: t = 0 -> bg, t = 256 -> fg (RGB565).
 uint16_t uiBlend565(uint16_t fg, uint16_t bg, uint16_t t);
 
@@ -80,6 +92,23 @@ Opt_Coord uiDrawOptions(
 void uiDrawSubmenu(int index, std::vector<Option> &options, const char *title);
 // Main-menu label: FM -> FP -> "..", centred on centerX and vertically inside the FM row at y.
 void uiMenuTitle(const String &name, int16_t centerX, int16_t y);
+// Screen title: upper case, FM -> FP -> "..", centred at TOP. Leaves the cursor at (0, bottom + 2) and FP,
+// so padprintln / ScrollableTextArea continue right below it.
+void uiTitle(const String &title);
+// Subtitle directly under the last title (or at TOP), FP, optional 1 px rule; cursor below it.
+void uiSubtitle(const String &subtitle, bool withLine);
+// Message box centred on the content area: FM on one line if it fits, else FP wrapped (max 6 lines).
+void uiStripe(const String &text, uint16_t fgcolor, uint16_t bgcolor);
+// Choice dialog with 0-3 buttons (null = absent). Same key handling and return value as displayMessage().
+int8_t uiMessage(
+    const char *message, const char *leftButton, const char *centerButton, const char *rightButton,
+    uint16_t color
+);
+// Progress bar: full draw only when a new operation starts, then incremental. Overflow-safe.
+void uiProgress(int progress, size_t total, const String &message);
+void uiProgressReset();
+void uiFootnote(const String &text, bool centred);
+
 // uiDrawOptions() requests a marquee restart whenever it redraws the selected row (it shows the
 // start of the label); displayScrollingText() consumes the request.
 bool uiMarqueeConsumeReset();
