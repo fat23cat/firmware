@@ -56,6 +56,49 @@ UiTextBlock uiTextBlockLayout(const String &text, int16_t maxW, int16_t maxH, ui
     return b;
 }
 
+UiInputLines uiInputLines(const String &text, bool mask, int16_t innerW, int maxLines) {
+    UiInputLines r;
+    String shown;
+    if (mask) {
+        for (unsigned i = 0; i < text.length(); i++) shown += '*';
+    } else {
+        shown = text;
+    }
+    shown += "_"; // caret
+    const int16_t fmChars = innerW / (LW * FM);
+    if ((int16_t)shown.length() <= fmChars) {
+        r.size = FM;
+        r.lines.push_back(shown);
+        return r;
+    }
+    r.size = FP;
+    const int16_t fpChars = innerW / (LW * FP);
+    if (fpChars <= 0) return r;
+    const int total = (shown.length() + fpChars - 1) / fpChars;
+    const int first = (maxLines > 0 && total > maxLines) ? total - maxLines : 0;
+    for (int l = first; l < total; l++) r.lines.push_back(shown.substring(l * fpChars, (l + 1) * fpChars));
+    return r;
+}
+
+UiKeyResult uiApplyKeyStroke(const keyStroke &k, String &text, int maxSize) {
+    UiKeyResult res = UI_KEY_NONE;
+    String keyStr = "";
+    for (auto c : k.word) {
+        if (keyStr != "") keyStr = keyStr + "+" + c;
+        else keyStr += c;
+    }
+    if ((int)text.length() < maxSize && !k.enter && !k.del) {
+        text += keyStr;
+        res = UI_KEY_CHANGED;
+    }
+    if (k.del && text.length() > 0) {
+        text.remove(text.length() - 1);
+        res = UI_KEY_CHANGED;
+    }
+    if (k.enter) res = UI_KEY_ENTER;
+    return res;
+}
+
 uint16_t uiBlend565(uint16_t fg, uint16_t bg, uint16_t t) {
     if (t > 256) t = 256;
     const uint16_t u = 256 - t;

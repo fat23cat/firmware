@@ -8,6 +8,8 @@
 #include "sd_functions.h"
 #include <ArduinoJson.h>
 
+#include "core/ui/compact.h"
+
 #ifndef HAS_1_BUTTON
 #define HAS_1_BUTTON 0
 #else
@@ -565,6 +567,22 @@ String generalKeyboard(
 #endif
 
     tft.fillScreen(bruceConfig.bgColor); // reset the screen
+#ifdef UI_COMPACT
+#ifdef HAS_KEYBOARD
+    // Compact screen while typing on the physical keyboard. Remote navigation (WebUI Navigator / serial
+    // "nav" commands) needs the on-screen key grid, so the first remote key press switches this session
+    // back to the legacy screen for good.
+    bool compactKb = uiCompact();
+    bool compactKbFull = true;
+    auto compactKbToLegacy = [&]() {
+        if (!compactKb) return;
+        compactKb = false;
+        tft.fillScreen(bruceConfig.bgColor);
+        old_y = -1; // forces the legacy top buttons row to be drawn
+        redraw = true;
+    };
+#endif
+#endif
 
     uint8_t longNextPress = 0;
     uint8_t longPrevPress = 0;
@@ -572,6 +590,18 @@ String generalKeyboard(
 
     // main loop
     while (1) {
+#ifdef UI_COMPACT
+#ifdef HAS_KEYBOARD
+        if (SerialCmdPress) compactKbToLegacy();
+        if (compactKb && redraw) {
+            uiKeyboardScreen(textbox_title, current_text, max_size, mask_input, compactKbFull);
+            compactKbFull = false;
+            old_x = x;
+            old_y = y;
+            redraw = false;
+        }
+#endif
+#endif
         if (redraw) {
             // setup
             tft.setCursor(0, 0);
@@ -793,6 +823,12 @@ String generalKeyboard(
         }
         // Prioritize Serial Input for navigation
         if (SerialCmdPress) { // only for Remote Control, if no type of input was detected on device
+#ifdef UI_COMPACT
+#ifdef HAS_KEYBOARD
+            // A remote key may arrive after the check at the top of the loop: switch before handling it.
+            compactKbToLegacy();
+#endif
+#endif
             if (check(SelPress)) {
                 selection_made = true;
             }
@@ -1139,6 +1175,16 @@ String generalKeyboard(
                 }
             }
 #elif defined(HAS_KEYBOARD)  // Cardputer, T-Deck and T-LoRa-Pager
+#ifdef UI_COMPACT
+            if (compactKb && KeyStroke.pressed) {
+                // Same text editing as the legacy branch below (uiApplyKeyStroke), but the compact screen
+                // redraws the text box instead of printing at the legacy cursor position.
+                wakeUpScreen();
+                if (uiApplyKeyStroke(KeyStroke, current_text, max_size) == UI_KEY_ENTER) { break; }
+                KeyStroke.Clear();
+                redraw = true;
+            }
+#endif
             if (KeyStroke.pressed) {
                 wakeUpScreen();
                 tft.setCursor(cursor_x, cursor_y);

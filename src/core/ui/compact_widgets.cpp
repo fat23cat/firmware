@@ -2,6 +2,7 @@
 
 #ifdef UI_COMPACT
 #include "core/display.h"
+#include "core/sd_functions.h"
 #include "core/utils.h"
 #include "core/wifi/wg.h"
 #include <WiFi.h>
@@ -135,9 +136,8 @@ int16_t listW() { return listRight() - LIST_X + 1; }
 int16_t textMaxW() { return listW() - 2 * TEXT_INSET; }
 int16_t contentBottom() { return tftHeight - 3; } // last usable y (frame at h - 2)
 
-void drawScrollbar(int first, int visible, int total) {
+void drawScrollbar(int first, int visible, int total, int16_t top = cui::TOP) {
     const int16_t x = scrollbarX();
-    const int16_t top = cui::TOP;
     const int16_t h = contentBottom() - top + 1;
     tft.fillRect(x, top, cui::SCROLLBAR_W, h, bruceConfig.bgColor);
     if (total <= visible || total <= 0) return;
@@ -473,6 +473,132 @@ void uiFootnote(const String &text, bool centred) {
     } else {
         uiDrawText(uiTruncate(text, contentW(), FP), tftWidth - cui::PAD, y, TR_DATUM);
     }
+}
+
+// ---------------------------------------------------------------------------------------------
+// File browser
+// ---------------------------------------------------------------------------------------------
+namespace {
+String s_fileListPath;
+String s_fileWindowPath; // path the file-list window belongs to
+int s_fileFirst = 0;
+
+int16_t fileRowsTop() { return cui::TOP + LH + 4; }       // below the path header and its rule
+int16_t fileTextX() { return LIST_X + TEXT_INSET + 2; }   // leaves room for the selection marker
+int16_t fileTextMaxW() { return listRight() - fileTextX() + 1; }
+} // namespace
+
+void uiSetFileListPath(const String &path) { s_fileListPath = path; }
+
+int uiFileListRows() { return max(1, (contentBottom() - fileRowsTop() + 1) / cui::ROW_FP); }
+
+Opt_Coord uiListFiles(int index, const std::vector<FileList> &fileList) {
+    Opt_Coord coord;
+    const uint16_t pri = bruceConfig.priColor, bg = bruceConfig.bgColor;
+    const int n = fileList.size();
+
+    // Header: path (middle-truncated) on the left, index/total on the right, rule below.
+    tft.setTextSize(FP);
+    tft.setTextColor(pri, bg);
+    // Clear the whole header band (TOP .. first row), including the scrollbar column: whatever was on screen
+    // before (e.g. the file-options list) must not show through under the rule.
+    tft.fillRect(LIST_X, cui::TOP, scrollbarX() + cui::SCROLLBAR_W - LIST_X, fileRowsTop() - cui::TOP, bg);
+    // Count only real entries: readFs() always appends the '> Back' operation row.
+    int files = 0, pos = 0;
+    for (int i = 0; i < n; i++) {
+        if (fileList[i].operation) continue;
+        files++;
+        if (i <= index) pos = files;
+    }
+    const bool onEntry = index >= 0 && index < n && !fileList[index].operation;
+    const String counter = (onEntry ? String(pos) : String("-")) + "/" + String(files);
+    const int16_t counterW = uiTextW(counter, FP);
+    uiDrawText(uiTruncateMiddle(s_fileListPath, textMaxW() - counterW - LW, FP), LIST_X + TEXT_INSET, cui::TOP, TL_DATUM);
+    uiDrawText(counter, listRight() - TEXT_INSET + 1, cui::TOP, TR_DATUM);
+    tft.drawFastHLine(LIST_X, cui::TOP + LH + 1, listW(), pri);
+
+    const int16_t top = fileRowsTop();
+    const int rows = uiFileListRows();
+    const int visible = min(rows, n);
+    const bool newFolder = s_fileListPath != s_fileWindowPath;
+    s_fileWindowPath = s_fileListPath;
+    s_fileFirst = uiListWindowFirst(index, n, visible, s_fileFirst, newFolder);
+    const int16_t maxChars = fileTextMaxW() / LW;
+
+    for (int r = 0; r < visible; r++) {
+        const int i = s_fileFirst + r;
+        const FileList &f = fileList[i];
+        const int16_t y = top + r * cui::ROW_FP;
+        const int16_t textY = y + (cui::ROW_FP - 1 - LH) / 2;
+        uint16_t color = pri;
+        if (f.folder) color = getColorVariation(pri); // same colours as legacy listFiles
+        else if (f.operation) color = ALCOLOR;
+
+        tft.fillRect(LIST_X, y, listW(), cui::ROW_FP, bg);
+        tft.setTextColor(color, bg);
+        if (i == index) {
+            // Selection marker; the text keeps its type colour because the marquee (non-highlight)
+            // repaints the text area with the background colour.
+            tft.fillRect(LIST_X, y, 2, cui::ROW_FP - 1, pri);
+            uiDrawText(f.filename.substring(0, maxChars), fileTextX(), textY, TL_DATUM);
+            coord.x = fileTextX();
+            coord.y = textY;
+            coord.size = maxChars + 1;
+            coord.fgcolor = color;
+            coord.bgcolor = bg;
+            s_marqueeReset = true;
+        } else {
+            uiDrawText(uiTruncateMiddle(f.filename, fileTextMaxW(), FP), fileTextX(), textY, TL_DATUM);
+        }
+    }
+    const int16_t usedBottom = top + visible * cui::ROW_FP;
+    if (usedBottom <= contentBottom()) tft.fillRect(LIST_X, usedBottom, listW(), contentBottom() - usedBottom + 1, bg);
+    drawScrollbar(s_fileFirst, visible, n, top);
+
+    tft.setTextSize(FP); // the marquee uses the current text size
+    return coord;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Text input (physical keyboard)
+// ---------------------------------------------------------------------------------------------
+void uiKeyboardScreen(const String &title, const String &text, int maxSize, bool mask, bool full) {
+    const uint16_t pri = bruceConfig.priColor, bg = bruceConfig.bgColor;
+    const uint16_t fg = getComplementaryColor2(bg);
+    const int16_t boxX = cui::PAD - 2, boxW = contentW() + 4;
+    const int16_t boxY = cui::TOP + LH + 3;
+    const int16_t fpPitch = LH * FP + 2;
+    const int fpLines = 4;
+    const int16_t boxH = fpLines * fpPitch + 6;
+    const int16_t innerX = boxX + 4, innerW = boxW - 8;
+    const int16_t hintY = tftHeight - 3 - LH + 1;
+
+    if (full) {
+        uiDrawMainBorder(false); // generalKeyboard() has just cleared the screen
+        tft.drawRect(boxX, boxY, boxW, boxH, pri);
+        tft.setTextSize(FP);
+        tft.setTextColor(getColorVariation(fg, 12, -1), bg);
+        uiDrawText(uiTruncate("Enter: OK   Del: delete", contentW(), FP), cui::PAD, hintY, TL_DATUM);
+    }
+
+    // Header: title left, counter right.
+    tft.setTextSize(FP);
+    tft.setTextColor(fg, bg);
+    tft.fillRect(cui::PAD, cui::TOP, contentW(), LH, bg);
+    const String counter = String(text.length()) + "/" + String(maxSize);
+    uiDrawText(counter, tftWidth - cui::PAD, cui::TOP, TR_DATUM);
+    uiDrawText(uiTruncate(title, contentW() - uiTextW(counter, FP) - LW, FP), cui::PAD, cui::TOP, TL_DATUM);
+
+    // Text box contents (see uiInputLines): FM on one line, else FP hard-wrapped, last `fpLines` lines.
+    tft.fillRect(boxX + 1, boxY + 1, boxW - 2, boxH - 2, bg);
+    const UiInputLines in = uiInputLines(text, mask, innerW, fpLines);
+    tft.setTextColor(fg, bg);
+    tft.setTextSize(in.size);
+    if (in.size == FM) {
+        uiDrawText(in.lines[0], innerX, boxY + (boxH - LH * FM) / 2, TL_DATUM);
+        return;
+    }
+    for (size_t l = 0; l < in.lines.size(); l++) uiDrawText(in.lines[l], innerX, boxY + 4 + l * fpPitch, TL_DATUM);
 }
 
 #endif // UI_COMPACT

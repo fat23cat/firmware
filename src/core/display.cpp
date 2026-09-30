@@ -1165,6 +1165,9 @@ void drawWireguardStatus(int x, int y) {
 ***************************************************************************************/
 #define MAX_ITEMS (int)(tftHeight - 20) / (LH * FM)
 Opt_Coord listFiles(int index, std::vector<FileList> fileList) {
+#ifdef UI_COMPACT
+    if (uiCompact()) return uiListFiles(index, fileList);
+#endif
     Opt_Coord coord;
     tft.drawPixel(0, 0, bruceConfig.bgColor);
     if (index == 0) {

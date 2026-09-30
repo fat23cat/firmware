@@ -74,6 +74,18 @@ struct UiTextBlock {
     std::vector<String> lines;
 };
 UiTextBlock uiTextBlockLayout(const String &text, int16_t maxW, int16_t maxH, uint8_t maxFmLines, uint8_t maxFpLines);
+// Text-input box: FM on one line while text + caret fit `innerW`, else FP hard-wrapped (no word wrap:
+// passwords, SSIDs, hex), keeping the last `maxLines` lines. `mask` shows '*' per character.
+struct UiInputLines {
+    uint8_t size;
+    std::vector<String> lines;
+};
+UiInputLines uiInputLines(const String &text, bool mask, int16_t innerW, int maxLines);
+// Applies one physical-keyboard stroke to `text` with the same rules as the legacy HAS_KEYBOARD branch of
+// generalKeyboard(): chars of a stroke are joined with '+', appended only while text.length() < maxSize
+// (and not on Enter/Del), Del removes the last char. Keep in sync with that branch after upstream changes.
+enum UiKeyResult { UI_KEY_NONE, UI_KEY_CHANGED, UI_KEY_ENTER };
+UiKeyResult uiApplyKeyStroke(const keyStroke &k, String &text, int maxSize);
 // Mixes `fg` towards `bg`: t = 0 -> bg, t = 256 -> fg (RGB565).
 uint16_t uiBlend565(uint16_t fg, uint16_t bg, uint16_t t);
 
@@ -108,6 +120,16 @@ int8_t uiMessage(
 void uiProgress(int progress, size_t total, const String &message);
 void uiProgressReset();
 void uiFootnote(const String &text, bool centred);
+
+// File browser (listFiles): path header with index/total, FP rows, selection marker, middle ".." keeping
+// the extension. The path is set by loopSD() right before listFiles().
+struct FileList; // core/sd_functions.h
+void uiSetFileListPath(const String &path);
+int uiFileListRows(); // visible rows, for page up/down
+Opt_Coord uiListFiles(int index, const std::vector<FileList> &fileList);
+// Text input screen for boards with a physical keyboard: title + counter, wrapped text box (masked if
+// needed), hint. `full` redraws the whole screen (status bar, frame, box outline) instead of the contents.
+void uiKeyboardScreen(const String &title, const String &text, int maxSize, bool mask, bool full);
 
 // uiDrawOptions() requests a marquee restart whenever it redraws the selected row (it shows the
 // start of the label); displayScrollingText() consumes the request.

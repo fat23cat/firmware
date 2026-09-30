@@ -22,6 +22,8 @@
 #include <algorithm> // for std::sort
 #include <esp_rom_crc.h>
 
+#include "core/ui/compact.h"
+
 // SPIClass sdcardSPI;
 String fileToCopy;
 std::vector<FileList> fileList;
@@ -612,7 +614,7 @@ String loopSD(FS &fs, bool filePicker, const String &allowed_ext, String rootPat
 
     Opt_Coord coord;
     String result = "";
-    const short PAGE_JUMP_SIZE = (tftHeight - 20) / (LH * FM);
+    const short PAGE_JUMP_SIZE = UIC((tftHeight - 20) / (LH * FM), uiFileListRows());
     bool reload = false;
     bool redraw = true;
     int index = 0;
@@ -621,6 +623,9 @@ String loopSD(FS &fs, bool filePicker, const String &allowed_ext, String rootPat
     String PreFolder = rootPath;
     tft.drawPixel(0, 0, 0);
     tft.fillScreen(bruceConfig.bgColor); // TODO: Does only the T-Embed CC1101 need this?
+#ifdef UI_COMPACT
+    if (uiCompact()) uiDrawMainBorder(false); else
+#endif
     tft.drawRoundRect(5, 5, tftWidth - 10, tftHeight - 10, 5, bruceConfig.priColor);
     if (&fs == &SD) {
         if (!setupSdCard()) {
@@ -649,6 +654,9 @@ String loopSD(FS &fs, bool filePicker, const String &allowed_ext, String rootPat
             if (strcmp(PreFolder.c_str(), Folder.c_str()) != 0 || reload) {
                 index = 0;
                 tft.fillScreen(bruceConfig.bgColor);
+#ifdef UI_COMPACT
+                if (uiCompact()) uiDrawMainBorder(false); else
+#endif
                 tft.drawRoundRect(5, 5, tftWidth - 10, tftHeight - 10, 5, bruceConfig.priColor);
                 Serial.println("reload to read: " + Folder);
                 readFs(fs, Folder, allowed_ext);
@@ -659,6 +667,9 @@ String loopSD(FS &fs, bool filePicker, const String &allowed_ext, String rootPat
             }
             if (fileList.size() < 2) readFs(fs, Folder, allowed_ext);
 
+#ifdef UI_COMPACT
+            uiSetFileListPath(Folder);
+#endif
             coord = listFiles(index, fileList);
 #if defined(HAS_TOUCH)
             TouchFooter();
@@ -777,6 +788,9 @@ String loopSD(FS &fs, bool filePicker, const String &allowed_ext, String rootPat
                         vTaskDelay(pdMS_TO_TICKS(1));
                     } // wait for SEL release to avoid repeated activations
                     loopOptions(options);
+#ifdef UI_COMPACT
+                    if (uiCompact()) uiDrawMainBorder(false); else
+#endif
                     tft.drawRoundRect(5, 5, tftWidth - 10, tftHeight - 10, 5, bruceConfig.priColor);
                     reload = true;
                     redraw = true;
@@ -793,6 +807,9 @@ String loopSD(FS &fs, bool filePicker, const String &allowed_ext, String rootPat
                         vTaskDelay(pdMS_TO_TICKS(1));
                     } // wait for SEL release to avoid repeated activations
                     loopOptions(options);
+#ifdef UI_COMPACT
+                    if (uiCompact()) uiDrawMainBorder(false); else
+#endif
                     tft.drawRoundRect(5, 5, tftWidth - 10, tftHeight - 10, 5, bruceConfig.priColor);
                     reload = true;
                     redraw = true;
@@ -970,6 +987,9 @@ String loopSD(FS &fs, bool filePicker, const String &allowed_ext, String rootPat
                         result = filepath;
                         break;
                     }
+#ifdef UI_COMPACT
+                    if (uiCompact()) uiDrawMainBorder(false); else
+#endif
                     tft.drawRoundRect(5, 5, tftWidth - 10, tftHeight - 10, 5, bruceConfig.priColor);
                     reload = true;
                     redraw = true;
