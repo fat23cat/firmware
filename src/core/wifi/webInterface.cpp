@@ -16,16 +16,14 @@
 #include <esp_heap_caps.h>
 #include <globals.h>
 
-#include "core/ui/compact.h"
+#include "core/ui/compact.h" // Keep original source line numbers for non-compact builds.
 
 File uploadFile;
 FS _webFS = LittleFS;
 // WiFi as a Client
 const int default_webserverporthttp = 80;
-
 // WiFi as an Access Point
 IPAddress AP_GATEWAY(172, 0, 0, 1); // Gateway
-
 AsyncWebServer *server = nullptr; // initialise webserver
 const char *host = "bruce";
 String uploadFolder = "";

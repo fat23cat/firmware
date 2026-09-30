@@ -43,7 +43,7 @@
 #endif
 #include "modules/wifi/wifi_atks.h" // to use deauth frames and cmds
 
-#include "core/ui/compact.h"
+#include "core/ui/compact.h" // Keep original source line numbers for non-compact builds.
 
 //===== SETTINGS =====//
 #define FILENAME "raw_"
@@ -52,7 +52,6 @@
 #define HOP_INTERVAL 214            // in ms (only necessary if channelHopping is true)
 #define DEAUTH_INTERVAL (15 * 1000) // Send deauth packets every ms
 #define EAPOL_ONLY true
-
 //===== Run-Time variables =====//
 unsigned long lastTime = 0;
 unsigned long lastChannelChange = 0;
@@ -69,7 +68,6 @@ uint32_t deauth_counter = 0;
 uint32_t beacon_frames = 0;
 uint32_t start_time = 0;
 long deauth_tmp = 0;
-
 File _pcap_file;
 File _deauth_file;
 bool deauthFileOpen = false;
