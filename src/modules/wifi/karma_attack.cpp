@@ -27,6 +27,8 @@
 #include <string.h>
 #include <vector>
 
+#include "core/ui/compact.h"
+
 void probe_sniffer(void *buf, wifi_promiscuous_pkt_type_t type);
 void saveHandshakeToFile(const HandshakeCapture &hs);
 void forceFullRedraw();
@@ -2422,10 +2424,61 @@ std::vector<ClientBehavior> getVulnerableClients() {
     return vulnerable;
 }
 
+#ifdef UI_COMPACT
+static void karmaCompactStats(const String &title, const std::vector<String> &lines) {
+    drawMainBorderWithTitle(title);
+    tft.setTextSize(FP);
+    tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+    int y = cui::TOP + FM * LH + 2;
+    const int x = cui::PAD;
+    const int width = tftWidth - 2 * x;
+    for (const String &line : lines) {
+        if (y + LH >= tftHeight - LH - 3) break;
+        uiDrawText(uiTruncate(line, width, FP), x, y, TL_DATUM);
+        y += cui::ROW_FP;
+    }
+    uiDrawText("Sel: Back", x, tftHeight - LH - 3, TL_DATUM);
+}
+#endif
+
 void updateKarmaDisplay() {
     unsigned long currentTime = millis();
     if (currentTime - last_time > 1000) {
         last_time = currentTime;
+#ifdef UI_COMPACT
+        if (uiCompact()) {
+            tft.fillRect(
+                cui::PAD, cui::TOP + FM * LH + 2, tftWidth - 2 * cui::PAD,
+                tftHeight - cui::TOP - FM * LH - LH - 8, bruceConfig.bgColor
+            );
+            tft.setTextSize(FP);
+            tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+            const int x = cui::PAD;
+            const int width = tftWidth - 2 * x;
+            int y = cui::TOP + FM * LH + 2;
+            auto row = [&](const String &s) {
+                uiDrawText(uiTruncate(s, width, FP), x, y, TL_DATUM);
+                y += cui::ROW_FP;
+            };
+            if (karmaPaused) {
+                tft.setTextColor(TFT_RED, bruceConfig.bgColor);
+                row("KARMA PAUSED");
+                tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+            }
+            row("Probes:" + String(totalProbes) + " Clients:" + String(uniqueClients));
+            row("Networks:" + String(activeNetworks.size()) + " Pending:" + String(pendingPortals.size()));
+            row("Queue:" + String(responseQueue.size()) + " Beacons:" + String(beaconsSent));
+            row("Karma:" + String(karmaResponsesSent) + " Clones:" + String(cloneAttacksLaunched));
+            row("Portals:" + String(autoPortalsLaunched) + "/" + String(activePortalCount()) + " HS:" + String(handshakeBuffer.size()));
+            row(
+                "Ch:" + String(pgm_read_byte(&karma_channels[channl % 14])) + " " +
+                (auto_hopping ? "Auto:" : "Man:") + String(hop_interval) + "ms"
+            );
+            if (activePortal != nullptr) row("Portal:" + activePortal->ssid);
+            uiDrawText(uiTruncate("SEL/ESC:Menu | Prev/Next:Channel", width, FP), x, tftHeight - LH - 3, TL_DATUM);
+            return;
+        }
+#endif
 
         tft.fillRect(10, 45, tftWidth - 20, tftHeight - 70, bruceConfig.bgColor);
         tft.setTextSize(1);
@@ -2768,10 +2821,23 @@ void karma_setup() {
             std::vector<Option> options = {
                 {"Enhanced Stats",
                  [&]() {
+#ifdef UI_COMPACT
+                     if (uiCompact()) {
+                         karmaCompactStats("ADVANCED STATS", {
+                             "Total:" + String(totalProbes) + " Unique:" + String(uniqueClients),
+                             "Karma:" + String(karmaResponsesSent) + " Beacons:" + String(beaconsSent),
+                             "Active:" + String(activeNetworks.size()) + " Pending:" + String(pendingPortals.size()),
+                             "Portals:" + String(activePortalCount()) + " Blacklist:" + String(macBlacklist.size()),
+                             "PMKID:" + String(pmkidCaptured) + " HS:" + String(handshakeBuffer.size()),
+                         });
+                         goto karma_advanced_stats_done;
+                     }
+                     {
+#endif
                      drawMainBorderWithTitle("ADVANCED STATS");
-                     int y = 45;
+                     int y = UIC(45, cui::TOP + FM * LH + 2);
                      tft.setTextSize(1);
-                     tft.setCursor(10, y);
+                     tft.setCursor(UIC(10, cui::PAD), y);
                      padprint("Total: " + String(totalProbes));
                      padprintln("Unique: " + String(uniqueClients), 10);
                      padprint("Karma: " + String(karmaResponsesSent));
@@ -2783,6 +2849,10 @@ void karma_setup() {
                      padprint("PMKID: " + String(pmkidCaptured));
                      padprintln("Handshakes: " + String(handshakeBuffer.size()), 10);
                      padprintln("Sel: Back");
+#ifdef UI_COMPACT
+                     }
+                 karma_advanced_stats_done:
+#endif
                      while (!check(SelPress) && !check(EscPress)) {
                          if (check(PrevPress)) break;
                          delay(50);
@@ -2982,22 +3052,41 @@ void karma_setup() {
                           }},
                          {"Database Info",
                  [&]() {
+#ifdef UI_COMPACT
+                              if (uiCompact()) {
+                                  karmaCompactStats("SSID DATABASE", {
+                                      "Total SSIDs: " + String(SSIDDatabase::getCount()),
+                                      "Cached: streaming",
+                                      "Progress: " + broadcastAttack.getProgressString(),
+                                  });
+                                  goto karma_database_done;
+                              }
+                              {
+#endif
                               drawMainBorderWithTitle("SSID DATABASE");
-                              int y = 60;
+                              int y = UIC(60, cui::TOP + FM * LH + 2);
                               tft.setTextSize(1);
-                              tft.fillRect(10, 40, tftWidth - 20, 100, bruceConfig.bgColor);
+                              tft.fillRect(
+                                  UIC(10, cui::PAD), UIC(40, cui::TOP + FM * LH + 2),
+                                  UIC(tftWidth - 20, tftWidth - 2 * cui::PAD),
+                                  UIC(100, tftHeight - cui::TOP - FM * LH - 6), bruceConfig.bgColor
+                              );
                               size_t total = SSIDDatabase::getCount();
-                              tft.setCursor(10, y);
-                              y += 15;
+                              tft.setCursor(UIC(10, cui::PAD), y);
+                              y += UIC(15, cui::ROW_FP);
                               tft.print("Total SSIDs: " + String(total));
-                              tft.setCursor(10, y);
-                              y += 15;
+                              tft.setCursor(UIC(10, cui::PAD), y);
+                              y += UIC(15, cui::ROW_FP);
                               tft.print("Cached: streaming");
-                              tft.setCursor(10, y);
-                              y += 15;
+                              tft.setCursor(UIC(10, cui::PAD), y);
+                              y += UIC(15, cui::ROW_FP);
                               tft.print("Progress: " + broadcastAttack.getProgressString());
-                              tft.setCursor(10, tftHeight - 20);
+                              tft.setCursor(UIC(10, cui::PAD), tftHeight - 20);
                               tft.print("Sel: Back");
+#ifdef UI_COMPACT
+                              }
+                          karma_database_done:
+#endif
                               while (!check(SelPress) && !check(EscPress)) delay(50);
                           }},
                          {"Set Speed",
@@ -3171,33 +3260,51 @@ void karma_setup() {
                                                  }});
                      broadcastOptions.push_back(
                          {"Show Stats", [&]() {
+#ifdef UI_COMPACT
+                              if (uiCompact()) {
+                                  BroadcastStats compactStats = broadcastAttack.getStats();
+                                  karmaCompactStats("BROADCAST STATS", {
+                                      "SSIDs:" + String(SSIDDatabase::getCount()) + " Progress:" +
+                                          String(broadcastAttack.getProgressPercent(), 1) + "%",
+                                      "Broadcasts:" + String(compactStats.totalBroadcasts),
+                                      "Responses:" + String(compactStats.totalResponses),
+                                      "Status:" + String(broadcastAttack.isActive() ? "ACTIVE" : "INACTIVE"),
+                                  });
+                                  goto karma_broadcast_stats_done;
+                              }
+                              {
+#endif
                               drawMainBorderWithTitle("BROADCAST STATS");
-                              int y = 40;
+                              int y = UIC(40, cui::TOP + FM * LH + 2);
                               tft.setTextSize(1);
                               size_t totalSSIDs = SSIDDatabase::getCount();
                               size_t currentPos = broadcastAttack.getCurrentPosition();
                               float progress = broadcastAttack.getProgressPercent();
                               BroadcastStats stats = broadcastAttack.getStats();
 
-                              tft.setCursor(10, y);
-                              y += 15;
+                              tft.setCursor(UIC(10, cui::PAD), y);
+                              y += UIC(15, cui::ROW_FP);
                               tft.print("Total SSIDs: " + String(totalSSIDs));
-                              tft.setCursor(10, y);
-                              y += 15;
+                              tft.setCursor(UIC(10, cui::PAD), y);
+                              y += UIC(15, cui::ROW_FP);
                               tft.print("Progress: " + String(progress, 1) + "%");
-                              tft.setCursor(10, y);
-                              y += 15;
+                              tft.setCursor(UIC(10, cui::PAD), y);
+                              y += UIC(15, cui::ROW_FP);
                               tft.print("Broadcasts: " + String(stats.totalBroadcasts));
-                              tft.setCursor(10, y);
-                              y += 15;
+                              tft.setCursor(UIC(10, cui::PAD), y);
+                              y += UIC(15, cui::ROW_FP);
                               tft.print("Responses: " + String(stats.totalResponses));
-                              tft.setCursor(10, y);
-                              y += 15;
+                              tft.setCursor(UIC(10, cui::PAD), y);
+                              y += UIC(15, cui::ROW_FP);
                               tft.print(
                                   "Status: " + String(broadcastAttack.isActive() ? "ACTIVE" : "INACTIVE")
                               );
-                              tft.setCursor(10, tftHeight - 20);
+                              tft.setCursor(UIC(10, cui::PAD), tftHeight - 20);
                               tft.print("Sel: Back");
+#ifdef UI_COMPACT
+                              }
+                          karma_broadcast_stats_done:
+#endif
                               while (!check(SelPress) && !check(EscPress)) {
                                   if (check(PrevPress)) break;
                                   delay(50);
@@ -3255,10 +3362,27 @@ void karma_setup() {
 
                 {"Show Stats",
                  [&]() {
+#ifdef UI_COMPACT
+                     if (uiCompact()) {
+                         int vulnCount = 0;
+                         for (const auto &clientPair : clientBehaviors)
+                             if (clientPair.second.isVulnerable) vulnCount++;
+                         karmaCompactStats("KARMA STATS", {
+                             "Probes:" + String(totalProbes) + " Clients:" + String(uniqueClients),
+                             "Responses:" + String(karmaResponsesSent) + " Portals:" + String(autoPortalsLaunched),
+                             "Clones:" + String(cloneAttacksLaunched) + " Deauth:" + String(deauthPacketsSent),
+                             "Vulnerable:" + String(vulnCount) + " Pending:" + String(pendingPortals.size()),
+                             "Active:" + String(activePortalCount()) + " PMKID:" + String(pmkidCaptured),
+                             "Handshakes:" + String(handshakeBuffer.size()),
+                         });
+                         goto karma_basic_stats_done;
+                     }
+                     {
+#endif
                      drawMainBorderWithTitle("KARMA STATS");
-                     int y = 45;
+                     int y = UIC(45, cui::TOP + FM * LH + 2);
                      tft.setTextSize(1);
-                     tft.setCursor(10, y);
+                     tft.setCursor(UIC(10, cui::PAD), y);
                      padprint("Probes: " + String(totalProbes));
                      padprintln("Uniq Clients: " + String(uniqueClients), 11);
                      padprint("Responses: " + String(karmaResponsesSent));
@@ -3275,6 +3399,10 @@ void karma_setup() {
                      padprintln("Handshakes: " + String(handshakeBuffer.size()));
                      padprintln("");
                      padprintln("Sel: Back");
+#ifdef UI_COMPACT
+                     }
+                 karma_basic_stats_done:
+#endif
                      while (!check(SelPress) && !check(EscPress)) {
                          if (check(PrevPress)) break;
                          delay(50);
