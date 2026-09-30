@@ -8,6 +8,8 @@ bool isConnectedWireguard = false;
 #include <WireGuard-ESP32.h>
 #include <globals.h>
 
+#include "core/ui/compact.h"
+
 char private_key[45];
 IPAddress local_ip;
 char public_key[45];
@@ -139,7 +141,7 @@ void wg_setup() {
     padprintln(local_ip.toString());
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
     padprintln("");
-    padprintln("Endpoint: " + String(endpoint_address));
+    padprintln(UIC("Endpoint: " + String(endpoint_address), uiTruncate("Endpoint: " + String(endpoint_address), tftWidth - 2 * cui::PAD, FP)));
     padprintln("Port: " + String(endpoint_port));
     padprintln("");
     printFootnote("Press any key to return");

@@ -24,6 +24,8 @@
 #include <memory>
 #include <string.h>
 
+#include "core/ui/compact.h"
+
 #ifndef KEY_TAB
 #define KEY_TAB 0x2b
 #endif
@@ -392,16 +394,20 @@ bool isSessionConnecting() {
 void resetClientScreen(const char *title) {
     (void)title;
     tft.fillScreen(bruceConfig.bgColor);
-    tft.drawRect(0, 0, tftWidth, tftHeight, bruceConfig.priColor);
+#ifdef UI_COMPACT
+    if (uiCompact()) drawMainBorder(false);
+    else
+#endif
+        tft.drawRect(0, 0, tftWidth, tftHeight, bruceConfig.priColor);
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
     tft.setTextSize(FP);
-    tft.setCursor(TERMINAL_PAD_X, TERMINAL_PAD_Y);
+    tft.setCursor(UIC(TERMINAL_PAD_X, cui::PAD), UIC(TERMINAL_PAD_Y, cui::TOP));
     String context = getQueuedPromptContext();
     if (!context.isEmpty()) {
         tft.setTextColor(TFT_CYAN, bruceConfig.bgColor);
-        tft.println(context);
+        tft.println(UIC(context, uiTruncate(context, tftWidth - 2 * cui::PAD, FP)));
         tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
-        tft.setCursor(TERMINAL_PAD_X, tft.getCursorY());
+        tft.setCursor(UIC(TERMINAL_PAD_X, cui::PAD), tft.getCursorY());
     }
     cursorY = tft.getCursorY();
 }
@@ -504,19 +510,19 @@ bool shouldSuppressEchoLine(String &line) {
 void renderPrompt(bool forceNewLine = false);
 
 void ensureCursorOnFreshLine() {
-    if (tft.getCursorX() > TERMINAL_PAD_X) {
+    if (tft.getCursorX() > UIC(TERMINAL_PAD_X, cui::PAD)) {
         tft.println();
-        tft.setCursor(TERMINAL_PAD_X, tft.getCursorY());
+        tft.setCursor(UIC(TERMINAL_PAD_X, cui::PAD), tft.getCursorY());
     }
 }
 
 void redrawCurrentCommandLine() {
     int lineHeight = max(1, FP * LH);
     int lineY = tft.getCursorY();
-    if (lineY < TERMINAL_PAD_Y) lineY = TERMINAL_PAD_Y;
+    if (lineY < UIC(TERMINAL_PAD_Y, cui::TOP)) lineY = UIC(TERMINAL_PAD_Y, cui::TOP);
 
-    tft.fillRect(TERMINAL_PAD_X, lineY, tftWidth - (TERMINAL_PAD_X * 2), lineHeight, bruceConfig.bgColor);
-    tft.setCursor(TERMINAL_PAD_X, lineY);
+    tft.fillRect(UIC(TERMINAL_PAD_X, cui::PAD), lineY, tftWidth - (UIC(TERMINAL_PAD_X, cui::PAD) * 2), lineHeight, bruceConfig.bgColor);
+    tft.setCursor(UIC(TERMINAL_PAD_X, cui::PAD), lineY);
     tft.setTextColor(TFT_GREEN, bruceConfig.bgColor);
     tft.print(commandBuffer);
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
@@ -643,13 +649,13 @@ void captureShellPromptLine(const String &line) {
 }
 
 int getTerminalCols() {
-    int usableWidth = tftWidth - (TERMINAL_PAD_X * 2);
+    int usableWidth = tftWidth - (UIC(TERMINAL_PAD_X, cui::PAD) * 2);
     int colWidth = max(1, FP * LW);
     return max(20, usableWidth / colWidth);
 }
 
 int getTerminalRows() {
-    int usableHeight = tftHeight - (TERMINAL_PAD_Y * 2);
+    int usableHeight = tftHeight - (UIC(TERMINAL_PAD_Y, cui::TOP) * 2);
     if (!getQueuedPromptContext().isEmpty()) usableHeight -= FP * LH;
     int rowHeight = max(1, FP * LH);
     return max(4, usableHeight / rowHeight);
@@ -659,22 +665,22 @@ void renderVisibleText(const String &title, const String &text, bool appendNewli
     ensureCursorOnFreshLine();
     tft.setTextColor(TFT_WHITE, bruceConfig.bgColor);
     for (size_t i = 0; i < text.length(); ++i) {
-        if (tft.getCursorX() > tftWidth - TERMINAL_PAD_X - (FP * LW)) {
+        if (tft.getCursorX() > tftWidth - UIC(TERMINAL_PAD_X, cui::PAD) - (FP * LW)) {
             tft.println();
-            tft.setCursor(TERMINAL_PAD_X, tft.getCursorY());
+            tft.setCursor(UIC(TERMINAL_PAD_X, cui::PAD), tft.getCursorY());
         }
         tft.write(text[i]);
-        if (tft.getCursorY() > tftHeight - TERMINAL_PAD_Y - (FP * LH)) {
+        if (tft.getCursorY() > tftHeight - UIC(TERMINAL_PAD_Y, cui::TOP) - (FP * LH)) {
             resetClientScreen(title.c_str());
             renderPrompt();
             tft.setTextColor(TFT_WHITE, bruceConfig.bgColor);
         }
-        if (tft.getCursorX() == 0) tft.setCursor(TERMINAL_PAD_X, tft.getCursorY());
+        if (tft.getCursorX() == 0) tft.setCursor(UIC(TERMINAL_PAD_X, cui::PAD), tft.getCursorY());
     }
 
     if (appendNewline) {
         tft.println();
-        if (tft.getCursorX() == 0) tft.setCursor(TERMINAL_PAD_X, tft.getCursorY());
+        if (tft.getCursorX() == 0) tft.setCursor(UIC(TERMINAL_PAD_X, cui::PAD), tft.getCursorY());
     }
 }
 

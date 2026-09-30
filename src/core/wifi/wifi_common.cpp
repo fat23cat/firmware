@@ -13,6 +13,8 @@
 #include <esp_netif.h>
 #include <globals.h>
 
+#include "core/ui/compact.h"
+
 static TaskHandle_t timezoneTaskHandle = NULL;
 static bool wifiTransitioning = false;
 
@@ -108,7 +110,7 @@ bool _connectToWifiNetwork(const String &ssid, const String &pwd) {
     RAM_LOG("wifi pre-mode"); // Wi-Fi is already up from the menu scan by this point
     drawMainBorderWithTitle("WiFi Connect");
     padprintln("");
-    padprint("Connecting to: " + ssid + ".");
+    padprint(UIC("Connecting to: " + ssid + ".", uiTruncate("Connecting to: " + ssid + ".", tftWidth - 2 * cui::PAD, FP)));
     WiFi.mode(WIFI_MODE_STA);
     RAM_LOG("wifi post-mode");
     vTaskDelay(10 / portTICK_PERIOD_MS);

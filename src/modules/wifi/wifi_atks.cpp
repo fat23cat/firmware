@@ -22,6 +22,8 @@
 #include <globals.h>
 #include <nvs_flash.h>
 
+#include "core/ui/compact.h"
+
 #define WIFI_ATK_NAME "BruceAttack"
 extern bool showHiddenNetworks;
 
@@ -166,6 +168,24 @@ void wsl_bypasser_send_raw_frame(const wifi_ap_record_t *ap_record, uint8_t chan
 }
 
 void wifi_atk_info(const String &tssid, const String &mac, uint8_t channel) {
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        drawMainBorderWithTitle("Information");
+        tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+        tft.setTextSize(FP);
+        const int x = cui::PAD;
+        const int width = tftWidth - 2 * x;
+        int y = cui::TOP + FM * LH + 2;
+        uiDrawText(uiTruncate("AP: " + tssid, width, FP), x, y, TL_DATUM);
+        y += cui::ROW_FP;
+        uiDrawText(uiTruncate("Channel: " + String(channel), width, FP), x, y, TL_DATUM);
+        y += cui::ROW_FP;
+        uiDrawText(uiTruncate(mac, width, FP), x, y, TL_DATUM);
+        uiDrawText(uiTruncate("Press " + String(BTN_ALIAS) + " to act", width, FP), x, tftHeight - LH - 3, TL_DATUM);
+        vTaskDelay(200 / portTICK_PERIOD_MS);
+        return;
+    }
+#endif
     drawMainBorder();
     tft.setTextColor(bruceConfig.priColor);
     tft.drawCentreString("-=Information=-", tft.width() / 2, 28, SMOOTH_FONT);
@@ -361,7 +381,7 @@ ScanNets:
         for (const auto &record : ap_records) {
             channel = record.primary;
             wsl_bypasser_send_raw_frame(&record, record.primary, _default_target);
-            tft.setCursor(10, tftHeight - 45);
+            tft.setCursor(UIC(10, cui::PAD), tftHeight - 45);
             tft.println("Channel " + String(record.primary) + "    ");
             for (int i = 0; i < 100; i++) {
                 send_raw_frame(deauth_frame, sizeof(deauth_frame_default));
@@ -372,11 +392,11 @@ ScanNets:
         }
         if (millis() - lastTime > 2000) {
             drawMainBorderWithTitle("Deauth Flood");
-            tft.setCursor(10, tftHeight - 25);
+            tft.setCursor(UIC(10, cui::PAD), tftHeight - 25);
             tft.print("Frames:               ");
-            tft.setCursor(10, tftHeight - 25);
+            tft.setCursor(UIC(10, cui::PAD), tftHeight - 25);
             tft.println("Frames: " + String(count / 2) + "/s   ");
-            tft.setCursor(10, tftHeight - 45);
+            tft.setCursor(UIC(10, cui::PAD), tftHeight - 45);
             tft.println("Channel " + String(channel) + "    ");
             count = 0;
             lastTime = millis();
@@ -555,6 +575,41 @@ void capture_handshake(const String &tssid, const String &mac, uint8_t channel) 
         }
 
         if (needRedraw) {
+#ifdef UI_COMPACT
+            if (uiCompact()) {
+                drawMainBorderWithTitle("Handshake Capture");
+                tft.setTextSize(FP);
+                tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+                const int x = cui::PAD;
+                const int width = tftWidth - 2 * x;
+                int y = cui::TOP + FM * LH + 2;
+                auto row = [&](const String &s) {
+                    uiDrawText(uiTruncate(s, width, FP), x, y, TL_DATUM);
+                    y += cui::ROW_FP;
+                };
+                row("SSID: " + tssid);
+                row("BSSID: " + mac);
+                row("Security: " + encryptionTypeStr);
+                tft.setTextColor(phase == CAPTURED ? TFT_GREEN : TFT_YELLOW, bruceConfig.bgColor);
+                row(String("Status: ") +
+                    (phase == CAPTURED ? "CAPTURED" : hasBeacons ? (phase == MONITORING ? "Monitoring" : "Scanning") : "Waiting"));
+                tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+                row(
+                    "EAPOL: " + String(hsTracker.msg1 ? "1" : "-") + String(hsTracker.msg2 ? "2" : "-") +
+                    String(hsTracker.msg3 ? "3" : "-") + String(hsTracker.msg4 ? "4" : "-")
+                );
+                String deauthLine = "Deauth: " + String(deauthCount);
+                if (phase != CAPTURED) {
+                    unsigned long remaining = deauthInterval() - (millis() - autoDeauthTimer);
+                    if (remaining > deauthInterval()) remaining = 0;
+                    deauthLine += " next:" + String(remaining / 1000) + "s";
+                }
+                row(deauthLine);
+                uiDrawText(phase == CAPTURED ? "Saved. Esc: exit" : "OK: deauth  Esc: exit", x, tftHeight - LH - 3, TL_DATUM);
+                goto handshake_redraw_done;
+            }
+            {
+#endif
             drawMainBorderWithTitle("Handshake Capture");
             tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
             padprintln("");
@@ -614,7 +669,11 @@ void capture_handshake(const String &tssid, const String &mac, uint8_t channel) 
                 padprintln("Handshake saved!        ");
                 tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
             }
-            tft.drawString("Press Esc to exit", 10, tftHeight - 20);
+            tft.drawString("Press Esc to exit", UIC(10, cui::PAD), tftHeight - 20);
+#ifdef UI_COMPACT
+            }
+        handshake_redraw_done:
+#endif
 
             needRedraw = false;
         }

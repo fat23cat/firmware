@@ -14,6 +14,8 @@ https://github.com/7h30th3r0n3/Evil-M5Project
 #include "core/utils.h"
 #include "core/wifi/wifi_common.h"
 
+#include "core/ui/compact.h"
+
 String netbiosname_str;
 String netbiosdomain_str;
 String dnsdomain_str;
@@ -190,6 +192,28 @@ String readUTF16(uint8_t *pkt, uint32_t offset, uint16_t len) {
 }
 
 void updateHashUI() {
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        drawMainBorderWithTitle("RESPONDER", true);
+        tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+        tft.setTextSize(FP);
+        const int x = cui::PAD;
+        int y = cui::TOP + FM * LH + 2;
+        const int width = tftWidth - 2 * x;
+        const String lines[] = {
+            "NTLM: " + String(hashCount),
+            "User: " + lastUser,
+            "Domain: " + lastDomain,
+            "Client: " + lastClient,
+            lastQueryProtocol + ": " + lastQueryName,
+        };
+        for (const String &line : lines) {
+            uiDrawText(uiTruncate(line, width, FP), x, y, TL_DATUM);
+            y += cui::ROW_FP;
+        }
+        return;
+    }
+#endif
     // auto& d = M5Cardputer.Display;
     drawMainBorderWithTitle("RESPONDER", true); // clear
 
@@ -607,14 +631,14 @@ void responder() {
         if (now - lastAnim > 250) {
             //  Choix de la fonction selon le count
             if (hashCount == 0) {
-                tft.setCursor(10, BORDER_PAD_Y + FM * LH);
+                tft.setCursor(UIC(10, cui::PAD), UIC(BORDER_PAD_Y + FM * LH, cui::TOP + FM * LH + 2));
                 tft.setTextSize(FP);
                 tft.println("Waiting LLMNR Interact");
             } else if (hashCount == 1) {
-                tft.setCursor(10, tftHeight - (7 + 2 * FP * LH));
+                tft.setCursor(UIC(10, cui::PAD), UIC(tftHeight - (7 + 2 * FP * LH), cui::TOP + FM * LH + 2));
                 tft.setTextSize(FP);
                 tft.println("Found Interaction!");
-                tft.setCursor(10, tftHeight - (6 + FP * LH));
+                tft.setCursor(UIC(10, cui::PAD), UIC(tftHeight - (6 + FP * LH), cui::TOP + FM * LH + 2 + cui::ROW_FP));
                 tft.println("thanks 7h30th3r0n3");
             }
             lastAnim = now;

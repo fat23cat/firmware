@@ -29,6 +29,8 @@
 #include <lwip/timeouts.h>
 #include <sstream>
 
+#include "core/ui/compact.h"
+
 struct wifi_header_t {
     uint16_t frame_ctrl;
     uint16_t duration;
@@ -1122,8 +1124,8 @@ void scanClientsOnAP(uint8_t *targetMAC, int channel) {
             sendDeauthFrames(frame, 26);
             scanCount++;
 
-            tft.fillRect(0, 80, tftWidth, tftHeight - 100, TFT_BLACK);
-            tft.setCursor(10, 80);
+            tft.fillRect(0, UIC(80, cui::TOP + FM * LH + 2), tftWidth, UIC(tftHeight - 100, tftHeight - (cui::TOP + FM * LH + 2) - 4), TFT_BLACK);
+            tft.setCursor(UIC(10, cui::PAD), UIC(80, cui::TOP + FM * LH + 2));
             padprintln("Scanning... (" + String(scanCount) + "s)");
             padprintln("");
             padprintln("Clients found: " + String(detectedClients.size()));

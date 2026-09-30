@@ -18,6 +18,8 @@
 #include <LittleFS.h>
 #include <esp_wifi.h>
 
+#include "core/ui/compact.h"
+
 // Forward declarations
 void netcutTrollTimingMenu();
 static void _activeLoop();
@@ -584,7 +586,7 @@ static void _activeLoop() {
                 }
             }
             const int _lh = (LH * FP + 2);
-            tft.fillRect(6, tftHeight - 6 * _lh, tftWidth - 12, 6 * _lh - 6, bruceConfig.bgColor);
+            tft.fillRect(UIC(6, cui::PAD), tftHeight - 6 * _lh, UIC(tftWidth - 12, tftWidth - 2 * cui::PAD), 6 * _lh - 6, bruceConfig.bgColor);
             tft.setTextSize(FP);
 
             // Troll timing info
@@ -593,7 +595,7 @@ static void _activeLoop() {
                 tft.drawString(
                     "Troll: " + String(s_trollOfflineMs / 1000) + "s OFF / " +
                         String(s_trollOnlineMs / 1000) + "s ON",
-                    10,
+                    UIC(10, cui::PAD),
                     tftHeight - 6 * _lh,
                     1
                 );
@@ -601,19 +603,19 @@ static void _activeLoop() {
 
             tft.setTextColor(TFT_RED, bruceConfig.bgColor);
             tft.drawString(
-                "CUT:" + String(cutN) + " Dev:" + String(s_deviceCount), 10, tftHeight - 5 * _lh, 1
+                "CUT:" + String(cutN) + " Dev:" + String(s_deviceCount), UIC(10, cui::PAD), tftHeight - 5 * _lh, 1
             );
             tft.setTextColor(TFT_MAGENTA, bruceConfig.bgColor);
             tft.drawString(
-                "TRL:" + String(trollOff) + "off/" + String(trollOn) + "on", 10, tftHeight - 4 * _lh, 1
+                "TRL:" + String(trollOff) + "off/" + String(trollOn) + "on", UIC(10, cui::PAD), tftHeight - 4 * _lh, 1
             );
 
             // Draw SNIPER count
             for (int i = 0; i < s_deviceCount; i++) tft.setTextColor(TFT_GREEN, bruceConfig.bgColor);
-            tft.drawString("Pkts:" + String(packetCount), 10, tftHeight - 3 * _lh, 1);
+            tft.drawString("Pkts:" + String(packetCount), UIC(10, cui::PAD), tftHeight - 3 * _lh, 1);
 
             tft.setTextColor(TFT_DARKGREY, bruceConfig.bgColor);
-            tft.drawString("Esc=Stop", 10, tftHeight - 2 * _lh, 1);
+            tft.drawString("Esc=Stop", UIC(10, cui::PAD), tftHeight - 2 * _lh, 1);
         }
 
         vTaskDelay(pdMS_TO_TICKS(10));
