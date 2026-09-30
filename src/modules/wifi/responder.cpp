@@ -635,10 +635,10 @@ void responder() {
                 tft.setTextSize(FP);
                 tft.println("Waiting LLMNR Interact");
             } else if (hashCount == 1) {
-                tft.setCursor(UIC(10, cui::PAD), UIC(tftHeight - (7 + 2 * FP * LH), cui::TOP + FM * LH + 2));
+                tft.setCursor(UIC(10, cui::PAD), UIC(tftHeight - (7 + 2 * FP * LH), tftHeight - 3 * cui::ROW_FP - 3));
                 tft.setTextSize(FP);
                 tft.println("Found Interaction!");
-                tft.setCursor(UIC(10, cui::PAD), UIC(tftHeight - (6 + FP * LH), cui::TOP + FM * LH + 2 + cui::ROW_FP));
+                tft.setCursor(UIC(10, cui::PAD), UIC(tftHeight - (6 + FP * LH), tftHeight - 2 * cui::ROW_FP - 3));
                 tft.println("thanks 7h30th3r0n3");
             }
             lastAnim = now;

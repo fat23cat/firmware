@@ -9,13 +9,29 @@
 
 #ifdef UI_COMPACT
 static void tcpCompactLog(const String &message, const char *title) {
-    for (const String &line : uiWrap(message, tftWidth - 2 * cui::PAD, FP, 5)) {
-        if (tft.getCursorY() > tftHeight - LH - cui::PAD) {
+    const int left = cui::PAD;
+    const int right = tftWidth - cui::PAD;
+    const int bottom = tftHeight - LH - cui::PAD;
+    tft.setTextSize(FP);
+    if (tft.getCursorX() < left) tft.setCursor(left, tft.getCursorY());
+
+    for (size_t i = 0; i < message.length(); ++i) {
+        const char ch = message[i];
+        if (ch == '\r') {
+            tft.setCursor(left, tft.getCursorY());
+            continue;
+        }
+        if (ch == '\n' || tft.getCursorX() + FP * LW > right) {
+            tft.println();
+            tft.setCursor(left, tft.getCursorY());
+        }
+        if (tft.getCursorY() > bottom) {
             drawMainBorderWithTitle(title);
             tft.setTextSize(FP);
             tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+            tft.setCursor(left, cui::TOP + FM * LH + 2);
         }
-        padprintln(line);
+        if (ch != '\n') tft.write((uint8_t)ch);
     }
 }
 #endif
