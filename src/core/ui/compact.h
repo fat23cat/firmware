@@ -53,9 +53,36 @@ uint8_t uiDrawFit(
     uint16_t bg
 );
 
+// ---- pure layout logic (compact_layout.cpp); no drawing, host-testable ----
+// First visible row of a list window: keeps `index` visible and moves only when it leaves the window.
+// `reset` (first render of a new list) starts from 0. Result is always in [0, max(0, n - visible)].
+int uiListWindowFirst(int index, int n, int visible, int prevFirst, bool reset);
+// Item shown in a submenu wheel slot. Slots are filled in the order of offsets 0, +1, -1, +2, -2
+// (see uiWheelOffset); only the first min(5, n) slots are used, so no item appears twice.
+int uiWheelSlotCount(int n);
+int uiWheelOffset(int slot); // 0, +1, -1, +2, -2
+int uiWheelItem(int index, int slot, int n);
+// Mixes `fg` towards `bg`: t = 0 -> bg, t = 256 -> fg (RGB565).
+uint16_t uiBlend565(uint16_t fg, uint16_t bg, uint16_t t);
+
 // ---- widgets (compact_widgets.cpp) ----
+struct Opt_Coord; // core/display.h
+
 void uiDrawStatusBar();
 void uiDrawMainBorder(bool clear);
+// Full-width list: one text size for the whole list (FM if every label fits, else FP), every visible
+// row repainted on each call. Leaves the list's text size set, for the marquee in loopOptions.
+Opt_Coord uiDrawOptions(
+    int index, std::vector<Option> &options, uint16_t fgcolor, uint16_t selcolor, uint16_t bgcolor,
+    bool firstRender
+);
+// 5-item vertical wheel: selected item FM (FP / ".." if long), neighbours FP.
+void uiDrawSubmenu(int index, std::vector<Option> &options, const char *title);
+// Main-menu label: FM -> FP -> "..", centred on centerX and vertically inside the FM row at y.
+void uiMenuTitle(const String &name, int16_t centerX, int16_t y);
+// uiDrawOptions() requests a marquee restart whenever it redraws the selected row (it shows the
+// start of the label); displayScrollingText() consumes the request.
+bool uiMarqueeConsumeReset();
 
 #else
 #define UIC(legacy, compact) (legacy)

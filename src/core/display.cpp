@@ -38,6 +38,15 @@ void displayScrollingText(const String &text, Opt_Coord &coord, bool highlight) 
     int scrollLen = len + 8;                // Full text plus space buffer
     static int i = 0;
     static long _lastmillis = 0;
+#ifdef UI_COMPACT
+    static String _lastText;
+    // Restart from the beginning on a new label, or when the list has just redrawn the selected row.
+    if (uiCompact() && (uiMarqueeConsumeReset() || text != _lastText)) {
+        _lastText = text;
+        i = 0;
+        _lastmillis = millis() + 1000;
+    }
+#endif
     if (highlight) tft.setTextColor(coord.bgcolor, coord.fgcolor);
     else tft.setTextColor(coord.fgcolor, coord.bgcolor);
     if (len < coord.size) {
@@ -550,6 +559,9 @@ int loopOptions(
     int devModeCounter = 0;
     static unsigned long _clock_bat_timer = millis();
     if (options.size() > MAX_MENU_SIZE) { menuSize = MAX_MENU_SIZE; }
+#ifdef UI_COMPACT
+    if (!uiCompact()) // compact: drawMainBorder() below clears the screen anyway
+#endif
     if (index > 0)
         tft.fillRoundRect(
             tftWidth * 0.10,
@@ -767,6 +779,9 @@ Opt_Coord drawOptions(
     int index, std::vector<Option> &options, uint16_t fgcolor, uint16_t selcolor, uint16_t bgcolor,
     bool firstRender
 ) {
+#ifdef UI_COMPACT
+    if (uiCompact()) return uiDrawOptions(index, options, fgcolor, selcolor, bgcolor, firstRender);
+#endif
     static int last_index = 0;
 
     Opt_Coord coord;
@@ -863,6 +878,9 @@ Opt_Coord drawOptions(
 ** Description:   Função para desenhar e mostrar as opçoes de contexto
 ***************************************************************************************/
 void drawSubmenu(int index, std::vector<Option> &options, const char *title) {
+#ifdef UI_COMPACT
+    if (uiCompact()) return uiDrawSubmenu(index, options, title);
+#endif
     drawStatusBar();
     int menuSize = options.size();
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
