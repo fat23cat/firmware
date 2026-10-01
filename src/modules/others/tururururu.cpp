@@ -3,6 +3,8 @@
 #include "core/mykeyboard.h"
 #include <globals.h>
 
+#include "core/ui/compact.h"
+
 // By: @IncursioHack / github.com/IncursioHack
 
 // Configuração do personagem principal (tubarão)
@@ -121,7 +123,7 @@ void checkCollisions() {
 void displayScore() {
     tft.setTextColor(TFT_WHITE, bruceConfig.bgColor);
     tft.setTextSize(FM);
-    tft.setCursor(0, 0);
+    tft.setCursor(UIC(0, cui::PAD), UIC(0, cui::TOP));
     tft.printf("Score: %d", score);
 }
 

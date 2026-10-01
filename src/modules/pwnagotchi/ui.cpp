@@ -10,6 +10,8 @@ Thanks to @bmorcelli for his help doing a better code.
 #include "ui.h"
 #include "../wifi/sniffer.h"
 
+#include "core/ui/compact.h"
+
 #define ROW_SIZE 40
 #define PADDING 10
 
@@ -34,8 +36,8 @@ void initUi() {
     display_h = tftHeight;
     canvas_h = display_h * .8;
     canvas_center_x = display_w / 2;
-    canvas_top_h = display_h * .1;
-    canvas_bot_h = display_h * .9;
+    canvas_top_h = UIC(display_h * .1, cui::SB_H);
+    canvas_bot_h = UIC(display_h * .9, display_h - 15);
     canvas_peers_menu_h = display_h * .8;
     canvas_peers_menu_w = display_w * .8;
 }
@@ -74,7 +76,10 @@ void drawTime() {
 
 void drawFooterData(uint8_t friends_run, uint8_t friends_tot, const String &last_friend_name, signed int rssi) {
     tft.drawPixel(0, 0, 0);
-    tft.fillRect(0, canvas_bot_h + 1, display_w - 50, canvas_bot_h + 10, bruceConfig.bgColor);
+    tft.fillRect(
+        0, canvas_bot_h + 1, display_w - 50,
+        UIC(canvas_bot_h + 10, display_h - canvas_bot_h - 1), bruceConfig.bgColor
+    );
     tft.setTextSize(1);
     tft.setTextColor(bruceConfig.priColor);
     tft.setTextDatum(TL_DATUM);
@@ -86,6 +91,12 @@ void drawFooterData(uint8_t friends_run, uint8_t friends_tot, const String &last
                 last_friend_name.substring(0, 13) + "] " + rssi_bars;
     }
 
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        uiDrawText(uiTruncate(stats, display_w - 50 - cui::PAD, FP), cui::PAD, canvas_bot_h + 5, TL_DATUM);
+        return;
+    }
+#endif
     tft.drawString(stats, 0, canvas_bot_h + 5);
 }
 
@@ -125,7 +136,7 @@ void drawTopCanvas() {
     // draw screen
     tft.drawPixel(0, 0, 0);
     tft.fillRect(0, 0, display_w, canvas_top_h, bruceConfig.bgColor);
-    tft.drawString(buffer, 0, 3);
+    tft.drawString(buffer, UIC(0, cui::PAD), 3);
     tft.drawLine(0, canvas_top_h - 1, display_w, canvas_top_h - 1, bruceConfig.priColor);
 }
 
@@ -136,12 +147,29 @@ void drawBottomCanvas() {
     tft.setTextDatum(TR_DATUM);
     // draw screen
     tft.drawPixel(0, 0, 0);
-    tft.fillRect(0, canvas_bot_h, display_w, canvas_bot_h + 10, bruceConfig.bgColor);
+    tft.fillRect(0, canvas_bot_h, display_w, UIC(canvas_bot_h + 10, display_h - canvas_bot_h), bruceConfig.bgColor);
+#ifdef UI_COMPACT
+    if (uiCompact()) uiDrawText("NOT AI", display_w - cui::PAD, canvas_bot_h + 5, TR_DATUM);
+    else
+#endif
     tft.drawString("NOT AI", display_w, canvas_bot_h + 5);
     tft.drawLine(0, canvas_bot_h, display_w, canvas_bot_h, bruceConfig.priColor);
 }
 
 void drawMood(const String &face, const String &phrase, bool broken) {
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        tft.fillRect(0, canvas_top_h + 10, display_w, canvas_bot_h - canvas_top_h - 20, bruceConfig.bgColor);
+        uiDrawFit(
+            face, canvas_center_x, canvas_h / 3, display_w - 2 * cui::PAD, TC_DATUM, FG + 1,
+            bruceConfig.priColor, bruceConfig.bgColor
+        );
+        tft.setTextSize(FP);
+        tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+        uiDrawText(uiTruncate(phrase, display_w - 2 * cui::PAD, FP), canvas_center_x, canvas_h - 30, TC_DATUM);
+        return;
+    }
+#endif
     // prepare canvas
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
     tft.setTextSize(FG + 1);

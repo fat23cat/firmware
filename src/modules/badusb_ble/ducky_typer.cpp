@@ -8,6 +8,9 @@
 #include "esp_mac.h"
 #include "modules/ble/ble_common.h"
 #include <NimBLEDevice.h>
+
+#include "core/ui/compact.h"
+
 #if defined(USB_as_HID)
 #include "tusb.h"
 #endif
@@ -826,21 +829,24 @@ void key_input(FS fs, const String &bad_script, HIDInterface *_hid) {
 
     tft.setTextSize(FP);
     tft.setTextColor(bruceConfig.priColor);
-    tft.setCursor(BORDER_OFFSET_FROM_SCREEN_EDGE * 2, FP * 8 * 3 + 2 + STATUS_BAR_HEIGHT);
+    tft.setCursor(
+        UIC(BORDER_OFFSET_FROM_SCREEN_EDGE * 2, cui::PAD),
+        UIC(FP * 8 * 3 + 2 + STATUS_BAR_HEIGHT, cui::TOP + 4 * cui::ROW_FP)
+    );
     tft.print("Run Time:");
     printDecimalTime(0);
 
     tft.drawLine(
         BORDER_OFFSET_FROM_SCREEN_EDGE,
-        tftHeight / 2 - FP * 4 - 2,
+        UIC(tftHeight / 2 - FP * 4 - 2, cui::TOP + 6 * cui::ROW_FP - 1),
         tftWidth - BORDER_OFFSET_FROM_SCREEN_EDGE,
-        tftHeight / 2 - FP * 4 - 2,
+        UIC(tftHeight / 2 - FP * 4 - 2, cui::TOP + 6 * cui::ROW_FP - 1),
         bruceConfig.priColor
     );
     if (!bruceConfig.badUSBBLEShowOutput) {
         tft.setTextSize(FP);
         tft.setTextColor(TFT_RED);
-        tft.setCursor(BORDER_OFFSET_FROM_SCREEN_EDGE * 2, tftHeight / 2);
+        tft.setCursor(UIC(BORDER_OFFSET_FROM_SCREEN_EDGE * 2, cui::PAD), UIC(tftHeight / 2, cui::TOP + 6 * cui::ROW_FP + 3));
         tft.print("Script output disabled");
     }
 
@@ -1026,7 +1032,7 @@ void ducky_keyboard(HIDInterface *&hid, bool ble) {
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
     tft.setTextSize(FP);
     drawMainBorder();
-    tft.setCursor(10, 28);
+    tft.setCursor(UIC(10, cui::PAD), UIC(28, cui::TOP + cui::ROW_FP));
     if (ble) tft.println("BLE Keyboard:");
     else tft.println("USB Keyboard:");
     tft.drawCentreString("> " + String(KB_HID_EXIT_MSG) + " <", tftWidth / 2, tftHeight - 20, 1);
@@ -1281,8 +1287,11 @@ void printTextAtPosition(uint16_t xOffset, uint16_t yOffset, const String &text)
     uint16_t currentTextCursorX = tft.getCursorX();
     uint16_t currentTextCursorY = tft.getCursorY();
 
-    uint16_t x = FP * 6 * xOffset + 2 + BORDER_OFFSET_FROM_SCREEN_EDGE;
-    uint16_t y = FP * 8 * yOffset + 2 + STATUS_BAR_HEIGHT;
+    uint16_t x = UIC(FP * 6 * xOffset + 2 + BORDER_OFFSET_FROM_SCREEN_EDGE, cui::PAD + FP * LW * xOffset);
+    uint16_t y = UIC(
+        FP * 8 * yOffset + 2 + STATUS_BAR_HEIGHT,
+        cui::TOP + (yOffset == 3 ? 4 : yOffset) * cui::ROW_FP
+    );
 
     tft.setTextSize(FP);
     tft.setTextColor(bruceConfig.secColor);
@@ -1302,14 +1311,26 @@ void printHeaderBadUSBBLE(const String &bad_script) {
 
     tft.setTextSize(FP);
     tft.setTextColor(bruceConfig.priColor);
-    tft.drawCentreString("BadUSB/BLE", tftWidth / 2, FP + STATUS_BAR_HEIGHT);
+    tft.drawCentreString("BadUSB/BLE", tftWidth / 2, UIC(FP + STATUS_BAR_HEIGHT, cui::TOP));
 
-    tft.setCursor(BORDER_OFFSET_FROM_SCREEN_EDGE * 2, FP * 8 * 1 + 2 + STATUS_BAR_HEIGHT);
+    tft.setCursor(
+        UIC(BORDER_OFFSET_FROM_SCREEN_EDGE * 2, cui::PAD),
+        UIC(FP * 8 * 1 + 2 + STATUS_BAR_HEIGHT, cui::TOP + cui::ROW_FP)
+    );
     tft.print("Script: ");
     tft.setTextColor(bruceConfig.secColor);
-    tft.print(bad_script.substring(bad_script.lastIndexOf("/") + 1));
+    tft.print(UIC(
+        bad_script.substring(bad_script.lastIndexOf("/") + 1),
+        uiTruncate(
+            bad_script.substring(bad_script.lastIndexOf("/") + 1),
+            tftWidth - cui::PAD * 2 - 8 * LW * FP, FP
+        )
+    ));
 
-    tft.setCursor(BORDER_OFFSET_FROM_SCREEN_EDGE * 2, FP * 8 * 2 + 2 + STATUS_BAR_HEIGHT);
+    tft.setCursor(
+        UIC(BORDER_OFFSET_FROM_SCREEN_EDGE * 2, cui::PAD),
+        UIC(FP * 8 * 2 + 2 + STATUS_BAR_HEIGHT, cui::TOP + 2 * cui::ROW_FP)
+    );
     tft.setTextColor(bruceConfig.priColor);
     tft.println("Status:");
 }
@@ -1328,12 +1349,15 @@ void printTFTBadUSBBLE(const String &text, uint16_t color, bool newline) {
     if (currentOutputY == 0 || currentOutputY > tftHeight - BORDER_OFFSET_FROM_SCREEN_EDGE * 2 - lineHeight) {
         tft.fillRect(
             leftX,
-            bottomHalfStartY,
+            UIC(bottomHalfStartY, cui::TOP + 6 * cui::ROW_FP + 3),
             rightLimit - leftX,
-            tftHeight - bottomHalfStartY - BORDER_OFFSET_FROM_SCREEN_EDGE * 2,
+            UIC(
+                tftHeight - bottomHalfStartY - BORDER_OFFSET_FROM_SCREEN_EDGE * 2,
+                tftHeight - (cui::TOP + 6 * cui::ROW_FP + 3) - BORDER_OFFSET_FROM_SCREEN_EDGE * 2
+            ),
             bruceConfig.bgColor
         );
-        currentOutputY = bottomHalfStartY;
+        currentOutputY = UIC(bottomHalfStartY, cui::TOP + 6 * cui::ROW_FP + 3);
         cursorX = leftX;
     }
 
@@ -1412,28 +1436,31 @@ void PresenterMode(HIDInterface *&hid, bool ble) {
     auto drawStaticUI = [&]() {
         tft.fillScreen(bruceConfig.bgColor);
 
-        tft.setTextSize(FM);
+        tft.setTextSize(UIC(FM, FP));
         tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
-        tft.drawCentreString("PRESENTER", tftWidth / 2, 10, 1);
+        tft.drawCentreString("PRESENTER", tftWidth / 2, UIC(10, cui::TOP), 1);
 
-        tft.drawFastHLine(10, 35, tftWidth - 20, bruceConfig.priColor);
+        tft.drawFastHLine(
+            UIC(10, cui::PAD), UIC(35, cui::TOP + cui::ROW_FP),
+            UIC(tftWidth - 20, tftWidth - 2 * cui::PAD), bruceConfig.priColor
+        );
 
-        tft.setTextSize(FM);
+        tft.setTextSize(UIC(FM, FP));
         tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
-        tft.drawCentreString("Time", tftWidth / 2, tftHeight / 2 + 15, 1);
+        tft.drawCentreString("Time", tftWidth / 2, UIC(tftHeight / 2 + 15, cui::TOP + 4 * cui::ROW_FP + 3), 1);
 
         tft.setTextSize(1);
         tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
-        tft.drawCentreString("<< PREV | SEL | NEXT >>", tftWidth / 2, tftHeight - 15, 1);
+        tft.drawCentreString("<< PREV | SEL | NEXT >>", tftWidth / 2, UIC(tftHeight - 15, tftHeight - 20), 1);
     };
 
     auto updateSlideDisplay = [&]() {
-        tft.fillRect(0, tftHeight / 2 - 35, tftWidth, 40, bruceConfig.bgColor);
+        tft.fillRect(0, UIC(tftHeight / 2 - 35, cui::TOP + cui::ROW_FP + 6), tftWidth, UIC(40, 27), bruceConfig.bgColor);
 
-        tft.setTextSize(4);
+        tft.setTextSize(UIC(4, 3));
         tft.setTextColor(TFT_WHITE, bruceConfig.bgColor);
         String slideStr = "Slide " + String(currentSlide);
-        tft.drawCentreString(slideStr, tftWidth / 2, tftHeight / 2 - 30, 1);
+        tft.drawCentreString(slideStr, tftWidth / 2, UIC(tftHeight / 2 - 30, cui::TOP + cui::ROW_FP + 8), 1);
         lastDisplayedSlide = currentSlide;
     };
 
@@ -1452,10 +1479,10 @@ void PresenterMode(HIDInterface *&hid, bool ble) {
             snprintf(timeBuffer, sizeof(timeBuffer), "%02d:%02d", minutes, seconds);
         }
 
-        tft.fillRect(0, tftHeight / 2 + 30, tftWidth, 30, bruceConfig.bgColor);
-        tft.setTextSize(3);
+        tft.fillRect(0, UIC(tftHeight / 2 + 30, cui::TOP + 5 * cui::ROW_FP + 4), tftWidth, UIC(30, 22), bruceConfig.bgColor);
+        tft.setTextSize(UIC(3, 2));
         tft.setTextColor(timerStarted ? TFT_GREEN : TFT_DARKGREY, bruceConfig.bgColor);
-        tft.drawCentreString(timeBuffer, tftWidth / 2, tftHeight / 2 + 35, 1);
+        tft.drawCentreString(timeBuffer, tftWidth / 2, UIC(tftHeight / 2 + 35, cui::TOP + 5 * cui::ROW_FP + 6), 1);
 
         lastDisplayedSeconds = elapsed;
     };

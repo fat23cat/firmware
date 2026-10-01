@@ -32,6 +32,8 @@
 #include <lwip/sys.h>
 #include <lwip/timeouts.h>
 
+#include "core/ui/compact.h"
+
 ARPoisoner::ARPoisoner(IPAddress gateway) { setup(gateway); }
 
 ARPoisoner::~ARPoisoner() {}
@@ -95,13 +97,13 @@ void ARPoisoner::loop() {
                 tft.drawRightString(
                     "   " + String(victimIP[0]) + "." + String(victimIP[1]) + "." + String(victimIP[2]) +
                         "." + String(i),
-                    tftWidth - 12,
-                    tftHeight - 16,
+                    UIC(tftWidth - 12, tftWidth - cui::PAD),
+                    UIC(tftHeight - 16, tftHeight - LH - 3),
                     1
                 );
             }
             tmp = millis();
-            tft.drawRightString("     Waiting...", tftWidth - 12, tftHeight - 16, 1);
+            tft.drawRightString("     Waiting...", UIC(tftWidth - 12, tftWidth - cui::PAD), UIC(tftHeight - 16, tftHeight - LH - 3), 1);
         }
     }
     pcapFile.close();

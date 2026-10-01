@@ -6,6 +6,8 @@
 #include "keyboard_js.h"
 #include "user_classes_js.h"
 
+#include "core/ui/compact.h"
+
 typedef struct {
     ScrollableTextArea *area;
 } TextViewerData;
@@ -196,12 +198,24 @@ JSValue native_dialogViewText(JSContext *ctx, JSValue *this_val, int argc, JSVal
     if (argc > 1 && JS_IsString(ctx, argv[1])) {
         JSCStringBuf sb;
         const char *title = JS_ToCString(ctx, argv[1], &sb);
+#ifdef UI_COMPACT
+        if (uiCompact()) {
+            tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+            tft.setTextSize(FM);
+            uiDrawText(uiTruncate(String(title), tftWidth - 2 * cui::PAD, FM), tftWidth / 2, cui::TOP, TC_DATUM);
+            padY = cui::TOP + FM * LH + 3;
+            tft.setTextSize(FP);
+        } else {
+#endif
         tft.setCursor((tftWidth - (strlen(title) * FM * LW)) / 2, padY);
         tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
         tft.setTextSize(FM);
         tft.println(title);
         padY = tft.getCursorY();
         tft.setTextSize(FP);
+#ifdef UI_COMPACT
+        }
+#endif
     }
     ScrollableTextArea area = ScrollableTextArea(
         1, 10, padY, tftWidth - 2 * BORDER_PAD_X, tftHeight - BORDER_PAD_X - padY, false, true

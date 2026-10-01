@@ -7,6 +7,8 @@
 #include "globals.h"
 #include <USB.h>
 
+#include "core/ui/compact.h"
+
 #ifdef USB_as_HID
 #include <USBHIDMouse.h>
 
@@ -704,6 +706,19 @@ unsigned long performClicking(const char *btnNameStr) {
  * stack corruption during USB init/cleanup operations
  */
 void clicker_setup() {
+#ifdef UI_COMPACT
+    layout = LayoutConfig();
+    if (uiCompact()) {
+        layout.margin = cui::PAD;
+        layout.header_height = cui::SB_H;
+        layout.item_height = 18;
+        layout.button_height = 24;
+        layout.text_size_large = FP;
+        layout.text_size_small = FP;
+        layout.start_y = cui::TOP + 1;
+        layout.item_spacing = 3;
+    }
+#endif
     // UI state variables
     int selected_item = 0;
     int prev_selected = 0;

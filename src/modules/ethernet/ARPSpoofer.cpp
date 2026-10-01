@@ -35,6 +35,8 @@
 #include <modules/wifi/sniffer.h> //use PCAP file saving functions
 #include <sstream>
 
+#include "core/ui/compact.h"
+
 ARPSpoofer::ARPSpoofer(
     const Host &host, IPAddress gateway, uint8_t _gatewayMAC[6], uint8_t mac[6], bool _mitm
 ) {
@@ -106,7 +108,10 @@ void ARPSpoofer::loop() {
             sendARPPacket(gatewayIP, gatewayMAC, victimIP, myMAC, pcapFile);
             tmp = millis();
             count++;
-            tft.drawRightString("Spoofed " + String(count) + " times", tftWidth - 12, tftHeight - 16, 1);
+            tft.drawRightString(
+                "Spoofed " + String(count) + " times", UIC(tftWidth - 12, tftWidth - cui::PAD),
+                UIC(tftHeight - 16, tftHeight - LH - 3), 1
+            );
         }
         vTaskDelay(pdMS_TO_TICKS(1));
     }
