@@ -27,6 +27,75 @@
 #include <esp_random.h>
 #include <globals.h>
 
+#include "core/ui/compact.h"
+
+#ifdef UI_COMPACT
+static constexpr int bleListTop = cui::TOP + FM * LH + 2;
+
+static int bleCompactRows(int top = bleListTop) {
+    const int footerY = tftHeight - 3 - LH + 1; // same baseline as uiFootnote()
+    const int listBottom = footerY - cui::PAD - 1;
+    return max(1, (listBottom - top) / cui::ROW_FP);
+}
+
+static void bleCompactFooter(const String &footer) {
+    tft.setTextColor(TFT_DARKGREY, bruceConfig.bgColor);
+    uiFootnote(footer, false);
+}
+
+static void bleCompactPage(
+    const String &title, const String &message, uint16_t color, const String &footer, bool clear = true,
+    int reservedRight = 0
+) {
+    drawMainBorderWithTitle(title, clear);
+    if (!clear) {
+        const int footerY = tftHeight - 3 - LH + 1;
+        tft.fillRect(cui::PAD, bleListTop, tftWidth - 2 * cui::PAD, footerY - bleListTop, bruceConfig.bgColor);
+    }
+    tft.setTextSize(FP);
+    tft.setTextColor(color, bruceConfig.bgColor);
+    int y = bleListTop;
+    for (const String &line : uiWrap(message, tftWidth - 2 * cui::PAD - reservedRight, FP, bleCompactRows())) {
+        uiDrawText(line, cui::PAD, y, TL_DATUM);
+        y += cui::ROW_FP;
+    }
+    bleCompactFooter(footer);
+}
+
+static void bleCompactListHeader(const String &title, const String &subtitle, bool firstRender) {
+    if (firstRender) drawMainBorderWithTitle(title);
+    tft.setTextSize(FP);
+    if (!subtitle.isEmpty()) {
+        tft.fillRect(cui::PAD, bleListTop, tftWidth - 2 * cui::PAD, LH, bruceConfig.bgColor);
+        tft.setTextColor(TFT_YELLOW, bruceConfig.bgColor);
+        uiDrawText(uiTruncate(subtitle, tftWidth - 2 * cui::PAD, FP), cui::PAD, bleListTop, TL_DATUM);
+    }
+}
+
+static void bleCompactListRow(const String &label, int row, bool selected, int top = bleListTop) {
+    const int y = top + row * cui::ROW_FP;
+    const uint16_t bg = selected ? bruceConfig.priColor : bruceConfig.bgColor;
+    const uint16_t fg = selected ? bruceConfig.bgColor : TFT_WHITE;
+    tft.fillRect(cui::PAD, y, tftWidth - 2 * cui::PAD, cui::ROW_FP - 1, bg);
+    tft.setTextSize(FP);
+    tft.setTextColor(fg, bg);
+    uiDrawText(uiTruncate(label, tftWidth - 2 * cui::PAD - 4, FP), cui::PAD + 2, y + 1, TL_DATUM);
+}
+
+template <typename LabelFn>
+static void bleCompactDrawList(
+    const String &title, const String &subtitle, int count, int visible, int selected, int scrollOffset,
+    int top, const String &footer, bool firstRender, LabelFn labelFor
+) {
+    bleCompactListHeader(title, subtitle, firstRender);
+    for (int row = 0; row < visible && scrollOffset + row < count; ++row) {
+        const int index = scrollOffset + row;
+        bleCompactListRow(labelFor(index), row, index == selected, top);
+    }
+    bleCompactFooter(footer);
+}
+#endif
+
 int showSubMenu(const char *title, const char *options[], int optionCount);
 
 extern tft_logger tft;
@@ -3007,12 +3076,21 @@ String selectFileFromSD() {
     int selected = 0, scrollOffset = 0;
     int lastSelected = -1, lastScrollOffset = -1;
     bool exitMenu = false;
-    int menuStartY = 60, menuItemHeight = 25;
-    int maxVisibleItems = (tftHeight - menuStartY - 50) / menuItemHeight;
+    int menuStartY = UIC(60, bleListTop), menuItemHeight = UIC(25, cui::ROW_FP);
+    int maxVisibleItems = UIC((tftHeight - menuStartY - 50) / menuItemHeight, bleCompactRows(bleListTop + cui::ROW_FP));
     if (maxVisibleItems > fileCount) maxVisibleItems = fileCount;
 
     while (!exitMenu) {
         if (selected != lastSelected || scrollOffset != lastScrollOffset) {
+#ifdef UI_COMPACT
+            if (uiCompact()) {
+                bleCompactDrawList(
+                    "SD CARD FILES", "Found: " + String(fileCount) + " files", fileCount, maxVisibleItems,
+                    selected, scrollOffset, bleListTop + cui::ROW_FP, "PREV/NEXT Move  SEL Open  ESC Back",
+                    lastSelected < 0, [&](int index) { return files[index]; }
+                );
+            } else {
+#endif
             tft.fillScreen(bruceConfig.bgColor);
             tft.drawRect(5, 5, tftWidth - 10, tftHeight - 10, TFT_WHITE);
 
@@ -3063,6 +3141,9 @@ String selectFileFromSD() {
             tft.print("SEL: Select  PREV/NEXT: Navigate");
             tft.setCursor(20, tftHeight - 20);
             tft.print("ESC: Back");
+#ifdef UI_COMPACT
+            }
+#endif
 
             lastSelected = selected;
             lastScrollOffset = scrollOffset;
@@ -3140,12 +3221,21 @@ String getScriptFromUser() {
     int selected = 0, scrollOffset = 0;
     int lastSelected = -1, lastScrollOffset = -1;
     bool exitMenu = false;
-    int menuStartY = 60, menuItemHeight = 25;
-    int maxVisibleItems = (tftHeight - menuStartY - 50) / menuItemHeight;
+    int menuStartY = UIC(60, bleListTop), menuItemHeight = UIC(25, cui::ROW_FP);
+    int maxVisibleItems = UIC((tftHeight - menuStartY - 50) / menuItemHeight, bleCompactRows());
     if (maxVisibleItems > scriptCount) maxVisibleItems = scriptCount;
 
     while (!exitMenu) {
         if (selected != lastSelected || scrollOffset != lastScrollOffset) {
+#ifdef UI_COMPACT
+            if (uiCompact()) {
+                bleCompactDrawList(
+                    "SELECT SCRIPT", "", scriptCount, maxVisibleItems, selected, scrollOffset, bleListTop,
+                    "PREV/NEXT Move  SEL Open  ESC Back", lastSelected < 0,
+                    [&](int index) { return scripts[index]; }
+                );
+            } else {
+#endif
             tft.fillScreen(bruceConfig.bgColor);
             TouchFooter();
             tft.drawRect(5, 5, tftWidth - 10, tftHeight - 10, TFT_WHITE);
@@ -3191,6 +3281,9 @@ String getScriptFromUser() {
             tft.print("SEL: Select  PREV/NEXT: Navigate");
             tft.setCursor(20, tftHeight - 20);
             tft.print("ESC: Back");
+#ifdef UI_COMPACT
+            }
+#endif
 
             lastSelected = selected;
             lastScrollOffset = scrollOffset;
@@ -3886,12 +3979,20 @@ void BLE_Sniffer() {
 
     while (true) {
         if (redraw) {
+#ifdef UI_COMPACT
+            if (uiCompact()) {
+                bleCompactPage("BLE SNIFFER", "Status: READY\nSEL Start capture\nESC Exit", TFT_WHITE, "");
+            } else {
+#endif
             drawMainBorderWithTitle("BLE SNIFFER");
             padprintln("");
             padprintln("Press [SEL] to start/stop capture");
             padprintln("Press [ESC] to exit");
             padprintln("");
             padprintln("Status: READY");
+#ifdef UI_COMPACT
+            }
+#endif
             redraw = false;
         }
         if (check(EscPress)) {
@@ -3921,7 +4022,11 @@ void BLE_Sniffer() {
             snifferPacketCount = 0;
             snifferPackets.clear();
 
-            padprintln("Status: CAPTURING...");
+#ifdef UI_COMPACT
+            if (uiCompact()) bleCompactPage("BLE SNIFFER", "Status: CAPTURING...", TFT_CYAN, "Please wait");
+            else
+#endif
+                padprintln("Status: CAPTURING...");
 
             NimBLEScanResults results = pScan->getResults(10 * 1000, true);
 
@@ -3944,6 +4049,14 @@ void BLE_Sniffer() {
             }
 
             pScan->stop();
+#ifdef UI_COMPACT
+            if (uiCompact()) {
+                bleCompactPage(
+                    "BLE SNIFFER", "Status: DONE\nCaptured: " + String(snifferPacketCount) + " packets",
+                    TFT_GREEN, "SEL View  NEXT Save  ESC Exit"
+                );
+            } else {
+#endif
             drawMainBorderWithTitle("BLE SNIFFER");
             padprintln("");
             padprintln("Status: DONE");
@@ -3952,17 +4065,24 @@ void BLE_Sniffer() {
             padprintln("[SEL]  - view packets");
             padprintln("[NEXT] - save to SD/LittleFS");
             padprintln("[ESC]  - exit");
+#ifdef UI_COMPACT
+            }
+#endif
         }
 
         if (isSelPressed && snifferPacketCount > 0) {
             int selected = 0;
             int scrollOffset = 0;
             bool viewing = true;
+#ifdef UI_COMPACT
+            bool compactFrameDirty = true;
+            if (uiCompact()) redraw = true;
+#endif
 
             while (viewing) {
-                int y = BORDER_PAD_Y + FM * LH + 4;
-                const int lineH = max(14, tftHeight / 12);
-                const int visibleItems = (tftHeight - y - 50) / lineH;
+                int y = UIC(BORDER_PAD_Y + FM * LH + 4, bleListTop);
+                const int lineH = UIC(max(14, tftHeight / 12), cui::ROW_FP);
+                const int visibleItems = UIC((tftHeight - y - 50) / lineH, bleCompactRows(bleListTop + cui::ROW_FP));
                 if (check(EscPress)) {
                     viewing = false;
                     redraw = true; // main screen
@@ -3970,6 +4090,21 @@ void BLE_Sniffer() {
                 }
 
                 if (redraw) {
+#ifdef UI_COMPACT
+                    if (uiCompact()) {
+                        bleCompactDrawList(
+                            "CAPTURED PACKETS", "Packets: " + String(snifferPacketCount), snifferPacketCount,
+                            visibleItems, selected, scrollOffset, bleListTop + cui::ROW_FP,
+                            "PREV/NEXT Move  SEL Details  ESC Back", compactFrameDirty,
+                            [&](int index) {
+                                const SnifferPacket &packet = snifferPackets[index];
+                                return String(index + 1) + ". " + packet.name + " (" +
+                                       String(packet.rssi) + "dB)";
+                            }
+                        );
+                        compactFrameDirty = false;
+                    } else {
+#endif
                     tft.fillScreen(bruceConfig.bgColor);
                     drawMainBorderWithTitle("CAPTURED PACKETS");
 
@@ -4013,6 +4148,9 @@ void BLE_Sniffer() {
                     tft.drawString(
                         "PREV/NEXT: Navigate  SEL: View Details  ESC: Back", 10, tftHeight - 20, 1
                     );
+#ifdef UI_COMPACT
+                    }
+#endif
                     redraw = false; // view screen
                     TouchFooter();
                 }
@@ -4036,6 +4174,24 @@ void BLE_Sniffer() {
                 if (check(SelPress)) {
                     SnifferPacket &pkt = snifferPackets[selected];
 
+#ifdef UI_COMPACT
+                    if (uiCompact()) {
+                        const int width = tftWidth - 2 * cui::PAD;
+                        String hex = pkt.payloadHex;
+                        hex.replace('\n', ' ');
+                        bleCompactPage(
+                            "PACKET DETAILS",
+                            uiTruncate("Device: " + pkt.name, width, FP) + "\n" +
+                                uiTruncate("Address: " + pkt.address, width, FP) + "\n" +
+                                uiTruncate(
+                                    "RSSI: " + String(pkt.rssi) + " dBm  Ch: " + String(pkt.channel), width, FP
+                                ) + "\n" +
+                                uiTruncate(parseManufacturerData(pkt.payload), width, FP) + "\n" +
+                                "Payload: " + String(pkt.payload.size()) + " bytes\n" + uiTruncate(hex, width, FP),
+                            TFT_WHITE, "Any key Back"
+                        );
+                    } else {
+#endif
                     drawMainBorderWithTitle("PACKET DETAILS");
                     int dy = BORDER_PAD_Y + FM * LH + 4;
                     int dlh = max(12, tftHeight / 14);
@@ -4069,10 +4225,16 @@ void BLE_Sniffer() {
                     tft.setTextColor(TFT_DARKGREY, bruceConfig.bgColor);
                     tft.setCursor(10, tftHeight - 20);
                     tft.drawString("Press any key to continue", 10, tftHeight - 20, 1);
+#ifdef UI_COMPACT
+                    }
+#endif
 
                     while (!check(EscPress) && !check(SelPress) && !check(PrevPress) && !check(NextPress)) {
                         delay(50);
                     }
+#ifdef UI_COMPACT
+                    if (uiCompact()) compactFrameDirty = true;
+#endif
                     redraw = true; // view screen
                 }
                 delay(100);
@@ -4177,6 +4339,11 @@ String selectTargetFromScan(const char *title) {
     // Clear previous results before scanning
     g_pBLEScan->clearResults();
 
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        bleCompactPage(title, "Scanning for devices...", TFT_WHITE, "Please wait");
+    } else {
+#endif
     tft.fillScreen(bruceConfig.bgColor);
     tft.drawRect(5, 5, tftWidth - 10, tftHeight - 10, TFT_WHITE);
     TouchFooter();
@@ -4197,6 +4364,9 @@ String selectTargetFromScan(const char *title) {
 
     tft.setCursor(20, 60);
     tft.print("Scanning for devices...");
+#ifdef UI_COMPACT
+    }
+#endif
 
     int activeScanTime = ACTIVE_SCAN_TIME;
     int passiveScanTime = PASSIVE_SCAN_TIME;
@@ -4208,7 +4378,10 @@ String selectTargetFromScan(const char *title) {
 
     // === ACTIVE SCAN ===
     g_pBLEScan->setActiveScan(true);
-    tft.setCursor(20, 80);
+#ifdef UI_COMPACT
+    if (uiCompact()) tft.setTextColor(TFT_WHITE, bruceConfig.bgColor);
+#endif
+    tft.setCursor(UIC(20, cui::PAD), UIC(80, bleListTop + cui::ROW_FP));
     tft.print("Active scan (" + String(activeScanTime) + "s)...");
 
     try {
@@ -4245,7 +4418,7 @@ String selectTargetFromScan(const char *title) {
 
         // === PASSIVE SCAN ===
         g_pBLEScan->setActiveScan(false);
-        tft.setCursor(20, 100);
+        tft.setCursor(UIC(20, cui::PAD), UIC(100, bleListTop + 2 * cui::ROW_FP));
         tft.print("Passive scan (" + String(passiveScanTime) + "s)...");
 
         BLEScanResults passiveResults = g_pBLEScan->getResults(passiveScanTime * 1000, false);
@@ -4292,6 +4465,11 @@ String selectTargetFromScan(const char *title) {
 
     DeviceSnapshot *snapshot = scannerData.getSnapshot();
     if (!snapshot || snapshot->count == 0) {
+#ifdef UI_COMPACT
+        if (uiCompact()) {
+            bleCompactPage("NO DEVICES", "No BLE devices found! Make sure devices are on and in range.", TFT_YELLOW, "");
+        } else {
+#endif
         tft.fillScreen(TFT_YELLOW);
         tft.drawRect(5, 5, tftWidth - 10, tftHeight - 10, TFT_BLACK);
         tft.setTextColor(TFT_BLACK, TFT_YELLOW);
@@ -4305,6 +4483,9 @@ String selectTargetFromScan(const char *title) {
         tft.print("Make sure BLE devices are");
         tft.setCursor(20, 100);
         tft.print("turned on and in range.");
+#ifdef UI_COMPACT
+        }
+#endif
         TouchFooter();
         delay(2000);
         return "";
@@ -4338,8 +4519,8 @@ String selectTargetFromScan(const char *title) {
         }
     }
 
-    int deviceItemHeight = 30, menuStartY = 60;
-    int maxVisibleDevices = (tftHeight - 45 - menuStartY) / deviceItemHeight;
+    int deviceItemHeight = UIC(30, cui::ROW_FP), menuStartY = UIC(60, bleListTop);
+    int maxVisibleDevices = UIC((tftHeight - 45 - menuStartY) / deviceItemHeight, bleCompactRows(bleListTop + cui::ROW_FP));
     if (maxVisibleDevices < 1) maxVisibleDevices = 1;
     int selectedIdx = 0, scrollOffset = 0;
     int lastSelected = -1, lastScrollOffset = -1;
@@ -4347,6 +4528,25 @@ String selectTargetFromScan(const char *title) {
 
     while (!exitLoop) {
         if (selectedIdx != lastSelected || scrollOffset != lastScrollOffset) {
+#ifdef UI_COMPACT
+            if (uiCompact()) {
+                bleCompactDrawList(
+                    "SELECT DEVICE", "Found: " + String(deviceCount) + " devices", (int)deviceCount,
+                    maxVisibleDevices, selectedIdx, scrollOffset, bleListTop + cui::ROW_FP,
+                    "PREV/NEXT Move  SEL Pick  ESC Back", lastSelected < 0,
+                    [&](int index) {
+                        String flags;
+                        if (snapshot->fastPair[index]) flags += " FP";
+                        if (snapshot->hfp[index]) flags += " HFP";
+                        if (snapshot->types[index] & 0x01) flags += " Audio";
+                        if (snapshot->types[index] & 0x02) flags += " HID";
+                        String suffix = " (" + String(snapshot->rssi[index]) + "dB)" + flags;
+                        int nameWidth = tftWidth - 2 * cui::PAD - 4 - uiTextW(suffix, FP);
+                        return uiTruncate(snapshot->names[index], nameWidth, FP) + suffix;
+                    }
+                );
+            } else {
+#endif
             tft.fillScreen(bruceConfig.bgColor);
             tft.drawRect(5, 5, tftWidth - 10, tftHeight - 10, TFT_WHITE);
             TouchFooter();
@@ -4403,6 +4603,9 @@ String selectTargetFromScan(const char *title) {
             tft.print("SEL: Select  PREV/NEXT: Navigate");
             tft.setCursor(20, tftHeight - 20);
             tft.print("ESC: Back");
+#ifdef UI_COMPACT
+            }
+#endif
 
             lastSelected = selectedIdx;
             lastScrollOffset = scrollOffset;
@@ -4468,11 +4671,37 @@ String selectMultipleTargetsFromScan(const char *title, std::vector<NimBLEAddres
     bool exitMenu = false;
     // size_t deviceCount = snapshot->count;
     size_t deviceCount = scannerData.deviceAddresses.size();
-    int menuStartY = 60, menuItemHeight = 25;
-    int maxVisibleItems = (tftHeight - menuStartY - 50) / menuItemHeight;
+    int menuStartY = UIC(60, bleListTop), menuItemHeight = UIC(25, cui::ROW_FP);
+    int maxVisibleItems = UIC((tftHeight - menuStartY - 50) / menuItemHeight, bleCompactRows(bleListTop + cui::ROW_FP));
     if (maxVisibleItems > (int)deviceCount) maxVisibleItems = deviceCount;
+#ifdef UI_COMPACT
+    int compactLastIndex = -1;
+    int compactLastScroll = -1;
+    size_t compactLastCount = static_cast<size_t>(-1);
+#endif
 
     while (!exitMenu) {
+#ifdef UI_COMPACT
+        if (uiCompact()) {
+            if (currentIndex != compactLastIndex || scrollOffset != compactLastScroll ||
+                targets.size() != compactLastCount) {
+                bleCompactDrawList(
+                    title, "Selected: " + String(targets.size()) + "/" + String(deviceCount), (int)deviceCount,
+                    maxVisibleItems, currentIndex, scrollOffset, bleListTop + cui::ROW_FP,
+                    "PREV/NEXT Move  SEL Toggle  ESC Back", compactLastIndex < 0,
+                    [&](int index) {
+                        String prefix = selected[index] ? "[X] " : "[ ] ";
+                        String address = " | " + snapshot->addresses[index];
+                        int nameWidth = tftWidth - 2 * cui::PAD - 4 - uiTextW(prefix + address, FP);
+                        return prefix + uiTruncate(snapshot->names[index], nameWidth, FP) + address;
+                    }
+                );
+                compactLastIndex = currentIndex;
+                compactLastScroll = scrollOffset;
+                compactLastCount = targets.size();
+            }
+        } else {
+#endif
         tft.fillScreen(bruceConfig.bgColor);
         tft.drawRect(5, 5, tftWidth - 10, tftHeight - 10, TFT_WHITE);
         TouchFooter();
@@ -4525,6 +4754,9 @@ String selectMultipleTargetsFromScan(const char *title, std::vector<NimBLEAddres
         tft.print("SEL: Toggle  NEXT: Confirm  PREV: Select");
         tft.setCursor(20, tftHeight - 20);
         tft.print("ESC: Back");
+#ifdef UI_COMPACT
+        }
+#endif
 
         if (check(EscPress)) {
             delay(200);
@@ -4883,6 +5115,11 @@ static bool welcomeShown = false;
 void showWelcomeScreen() {
     if (welcomeShown) return;
 
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        bleCompactPage("BRUCE", "BLE SUITE v3.1", TFT_PURPLE, "");
+    } else {
+#endif
     tft.fillScreen(bruceConfig.bgColor);
     TouchFooter();
     tft.setTextSize(4);
@@ -4899,6 +5136,9 @@ void showWelcomeScreen() {
     tft.setTextSize(1.5);
     tft.setCursor((tftWidth - tft.textWidth("v3.1")) / 2, 100);
     tft.print("v3.1");
+#ifdef UI_COMPACT
+    }
+#endif
     delay(2000);
 
     welcomeShown = true;
@@ -4937,10 +5177,19 @@ void BleSuiteMenu() {
 
     int selected = 0, scrollOffset = 0;
     int lastSelected = -1, lastScrollOffset = -1;
-    int maxVisible = (tftHeight - 80) / 25;
+    int maxVisible = UIC((tftHeight - 80) / 25, bleCompactRows());
 
     while (true) {
         if (selected != lastSelected || scrollOffset != lastScrollOffset) {
+#ifdef UI_COMPACT
+            if (uiCompact()) {
+                bleCompactDrawList(
+                    "BLE SUITE", "", MENU_ITEMS, maxVisible, selected, scrollOffset, bleListTop,
+                    "PREV/NEXT Move  SEL Open  ESC Back", lastSelected < 0,
+                    [&](int index) { return String(index + 1) + ". " + menuItems[index]; }
+                );
+            } else {
+#endif
             tft.fillScreen(bruceConfig.bgColor);
             TouchFooter();
             tft.drawRect(5, 5, tftWidth - 10, tftHeight - 10, TFT_WHITE);
@@ -4982,6 +5231,9 @@ void BleSuiteMenu() {
             tft.print("SEL: Select  PREV/NEXT: Navigate");
             tft.setCursor(20, tftHeight - 20);
             tft.print("ESC: Back");
+#ifdef UI_COMPACT
+            }
+#endif
 
             lastSelected = selected;
             lastScrollOffset = scrollOffset;
@@ -5089,6 +5341,9 @@ void executeAttackWithTargetScan(int attackIndex) {
 //=============================================================================
 
 int showSubMenu(const char *title, const char *options[], int optionCount) {
+#ifdef UI_COMPACT
+    if (!uiCompact()) {
+#endif
     tft.fillScreen(bruceConfig.bgColor);
     TouchFooter();
     tft.drawRect(5, 5, tftWidth - 10, tftHeight - 10, TFT_WHITE);
@@ -5099,13 +5354,25 @@ int showSubMenu(const char *title, const char *options[], int optionCount) {
     tft.setCursor((tftWidth - tft.textWidth(title)) / 2, 15);
     tft.print(title);
     tft.setTextSize(1);
+#ifdef UI_COMPACT
+    }
+#endif
 
     int selected = 0, scrollOffset = 0;
     int lastSelected = -1, lastScrollOffset = -1;
-    int maxVisible = (tftHeight - 80) / 25;
+    int maxVisible = UIC((tftHeight - 80) / 25, bleCompactRows());
 
     while (true) {
         if (selected != lastSelected || scrollOffset != lastScrollOffset) {
+#ifdef UI_COMPACT
+            if (uiCompact()) {
+                bleCompactDrawList(
+                    title, "", optionCount, maxVisible, selected, scrollOffset, bleListTop,
+                    "PREV/NEXT Move  SEL Open  ESC Back", lastSelected < 0,
+                    [&](int index) { return String(options[index]); }
+                );
+            } else {
+#endif
             tft.fillRect(20, 60, tftWidth - 40, tftHeight - 115, bruceConfig.bgColor);
 
             for (int i = 0; i < maxVisible && (scrollOffset + i) < optionCount; i++) {
@@ -5153,6 +5420,9 @@ int showSubMenu(const char *title, const char *options[], int optionCount) {
             tft.print("SEL: Select  PREV/NEXT: Navigate");
             tft.setCursor(20, tftHeight - 20);
             tft.print("ESC: Back");
+#ifdef UI_COMPACT
+            }
+#endif
 
             lastSelected = selected;
             lastScrollOffset = scrollOffset;
@@ -5950,6 +6220,15 @@ void runHFPHIDPivotAttack(NimBLEAddress target) {
 //=============================================================================
 
 void showAttackProgress(const char *message, uint16_t color) {
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        bleCompactPage("BLE SUITE", message, color, "Please wait...", false, 2 * LW);
+        static uint8_t compactSpinnerPos = 0;
+        tft.setTextColor(color, bruceConfig.bgColor);
+        uiDrawText(String("|/-\\"[compactSpinnerPos++ % 4]), tftWidth - cui::PAD - LW, bleListTop, TL_DATUM);
+        return;
+    }
+#endif
     tft.fillScreen(bruceConfig.bgColor);
     TouchFooter();
     tft.drawRect(5, 5, tftWidth - 10, tftHeight - 10, TFT_WHITE);
@@ -6003,6 +6282,15 @@ void showAttackProgress(const char *message, uint16_t color) {
 }
 
 void showAttackResult(bool success, const char *message) {
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        bleCompactPage(
+            success ? "SUCCESS" : "FAILED", message ? String(message) :
+                                           String(success ? "Attack successful!" : "Attack failed"),
+            success ? TFT_GREEN : TFT_RED, "SEL Continue  ESC Back"
+        );
+    } else {
+#endif
     if (success) {
         tft.fillScreen(TFT_GREEN);
         TouchFooter();
@@ -6064,12 +6352,23 @@ void showAttackResult(bool success, const char *message) {
     tft.setTextColor(TFT_WHITE, success ? TFT_GREEN : TFT_RED);
     tft.setCursor(20, tftHeight - 35);
     tft.print("SEL: Continue  ESC: Back");
+#ifdef UI_COMPACT
+    }
+#endif
 
     while (!check(SelPress) && !check(EscPress)) delay(50);
     delay(200);
 }
 
 bool confirmAttack(const char *targetName) {
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        bleCompactPage(
+            "CONFIRM ATTACK", String("Target: ") + targetName + "\nFastPair buffer overflow exploit", TFT_WHITE,
+            "SEL Yes  NEXT No  ESC Cancel"
+        );
+    } else {
+#endif
     tft.fillScreen(bruceConfig.bgColor);
     TouchFooter();
     tft.drawRect(5, 5, tftWidth - 10, tftHeight - 10, TFT_WHITE);
@@ -6096,6 +6395,9 @@ bool confirmAttack(const char *targetName) {
     tft.setTextColor(TFT_GREEN, bruceConfig.bgColor);
     tft.setCursor(20, tftHeight - 30);
     tft.print("SEL: Yes  NEXT: No  ESC: Cancel");
+#ifdef UI_COMPACT
+    }
+#endif
 
     while (true) {
         if (check(EscPress)) return false;
@@ -6106,6 +6408,11 @@ bool confirmAttack(const char *targetName) {
 }
 
 bool requireSimpleConfirmation(const char *message) {
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        bleCompactPage("CONFIRM", message, TFT_WHITE, "SEL OK  ESC Cancel");
+    } else {
+#endif
     tft.fillScreen(bruceConfig.bgColor);
     TouchFooter();
     tft.drawRect(5, 5, tftWidth - 10, tftHeight - 10, TFT_WHITE);
@@ -6151,6 +6458,9 @@ bool requireSimpleConfirmation(const char *message) {
     tft.setTextColor(TFT_WHITE, bruceConfig.bgColor);
     tft.setCursor(20, tftHeight - 35);
     tft.print("SEL: OK  ESC: Cancel");
+#ifdef UI_COMPACT
+    }
+#endif
 
     while (true) {
         if (check(EscPress)) {
@@ -6172,6 +6482,11 @@ int8_t showAdaptiveMessage(
     if (strlen(btn2) > 0) buttonCount++;
     if (strlen(btn3) > 0) buttonCount++;
 
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        bleCompactPage("MESSAGE", line1, color, "");
+    } else {
+#endif
     tft.fillScreen(bruceConfig.bgColor);
     TouchFooter();
     tft.drawRect(5, 5, tftWidth - 10, tftHeight - 10, TFT_WHITE);
@@ -6211,6 +6526,9 @@ int8_t showAdaptiveMessage(
         yPos += lineHeight;
         if (yPos > 140) break;
     }
+#ifdef UI_COMPACT
+    }
+#endif
 
     tft.setTextColor(TFT_BLACK, bruceConfig.bgColor);
     tft.setCursor(20, tftHeight - 35);
@@ -6220,7 +6538,11 @@ int8_t showAdaptiveMessage(
             delay(1500);
             return 0;
         }
-        tft.print("Press any key to continue...");
+#ifdef UI_COMPACT
+        if (uiCompact()) bleCompactFooter("Any key Continue");
+        else
+#endif
+            tft.print("Press any key to continue...");
         while (true) {
             if (check(EscPress) || check(SelPress) || check(PrevPress) || check(NextPress)) {
                 delay(200);
@@ -6229,7 +6551,11 @@ int8_t showAdaptiveMessage(
             delay(50);
         }
     } else if (buttonCount == 1) {
-        tft.print("SEL: Select  ESC: Cancel");
+#ifdef UI_COMPACT
+        if (uiCompact()) bleCompactFooter("SEL Select  ESC Cancel");
+        else
+#endif
+            tft.print("SEL: Select  ESC: Cancel");
         while (true) {
             if (check(EscPress)) {
                 delay(200);
@@ -6242,7 +6568,11 @@ int8_t showAdaptiveMessage(
             delay(50);
         }
     } else {
-        tft.print("SEL: Btn1  NEXT: Btn2  ESC: Cancel");
+#ifdef UI_COMPACT
+        if (uiCompact()) bleCompactFooter("SEL 1  NEXT 2  PREV 3  ESC Back");
+        else
+#endif
+            tft.print("SEL: Btn1  NEXT: Btn2  ESC: Cancel");
         while (true) {
             if (check(EscPress)) {
                 delay(200);
@@ -6266,6 +6596,11 @@ int8_t showAdaptiveMessage(
 }
 
 void showWarningMessage(const char *message) {
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        bleCompactPage("WARNING", message, TFT_YELLOW, "Any key Continue");
+    } else {
+#endif
     tft.fillScreen(TFT_YELLOW);
     TouchFooter();
     tft.drawRect(5, 5, tftWidth - 10, tftHeight - 10, TFT_BLACK);
@@ -6309,6 +6644,9 @@ void showWarningMessage(const char *message) {
     tft.setTextColor(TFT_BLACK, TFT_YELLOW);
     tft.setCursor(20, tftHeight - 35);
     tft.print("Press any key to continue...");
+#ifdef UI_COMPACT
+    }
+#endif
 
     while (true) {
         if (check(EscPress) || check(SelPress) || check(PrevPress) || check(NextPress)) {
@@ -6320,6 +6658,11 @@ void showWarningMessage(const char *message) {
 }
 
 void showErrorMessage(const char *message) {
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        bleCompactPage("ERROR", message, TFT_RED, "Any key Continue");
+    } else {
+#endif
     tft.fillScreen(TFT_RED);
     TouchFooter();
     tft.drawRect(5, 5, tftWidth - 10, tftHeight - 10, TFT_BLACK);
@@ -6362,6 +6705,9 @@ void showErrorMessage(const char *message) {
 
     tft.setCursor(20, tftHeight - 35);
     tft.print("Press any key to continue...");
+#ifdef UI_COMPACT
+    }
+#endif
 
     while (true) {
         if (check(EscPress) || check(SelPress) || check(PrevPress) || check(NextPress)) {
@@ -6373,6 +6719,11 @@ void showErrorMessage(const char *message) {
 }
 
 void showSuccessMessage(const char *message) {
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        bleCompactPage("SUCCESS", message, TFT_GREEN, "Any key Continue");
+    } else {
+#endif
     tft.fillScreen(TFT_GREEN);
     TouchFooter();
     tft.drawRect(5, 5, tftWidth - 10, tftHeight - 10, TFT_BLACK);
@@ -6415,6 +6766,9 @@ void showSuccessMessage(const char *message) {
 
     tft.setCursor(20, tftHeight - 35);
     tft.print("Press any key to continue...");
+#ifdef UI_COMPACT
+    }
+#endif
 
     while (true) {
         if (check(EscPress) || check(SelPress) || check(PrevPress) || check(NextPress)) {
@@ -6428,6 +6782,19 @@ void showSuccessMessage(const char *message) {
 void showDeviceInfoScreen(
     const char *title, const std::vector<String> &lines, uint16_t bgColor, uint16_t textColor
 ) {
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        String message;
+        for (const String &line : lines) {
+            if (!message.isEmpty()) message += "\n";
+            message += line;
+        }
+        bleCompactPage(
+            title, message, textColor == TFT_BLACK ? bruceConfig.priColor : textColor,
+            "Any key Continue"
+        );
+    } else {
+#endif
     tft.fillScreen(bgColor);
     TouchFooter();
     tft.drawRect(5, 5, tftWidth - 10, tftHeight - 10, TFT_WHITE);
@@ -6479,6 +6846,9 @@ void showDeviceInfoScreen(
     tft.setTextColor(TFT_BLACK, bgColor);
     tft.setCursor(20, tftHeight - 35);
     tft.print("Press any key to continue...");
+#ifdef UI_COMPACT
+    }
+#endif
 
     while (true) {
         if (check(EscPress) || check(SelPress) || check(PrevPress) || check(NextPress)) {

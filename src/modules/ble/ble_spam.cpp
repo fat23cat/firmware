@@ -49,6 +49,9 @@
 #include <Preferences.h>
 #define BLE_SPAM_HAS_PREFERENCES 1
 #endif
+
+#include "core/ui/compact.h"
+
 #if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C2) ||                              \
     defined(CONFIG_IDF_TARGET_ESP32S3)
 #define MAX_TX_POWER ESP_PWR_LVL_P21
@@ -894,13 +897,13 @@ static uint32_t bleSpamAdjustMs(uint32_t ms, int direction) {
 
 static BleSpamListMetrics bleSpamGetListMetrics(int footerLines) {
     BleSpamListMetrics metrics;
-    metrics.list_x = 10;
-    metrics.list_y = BORDER_PAD_Y + FM * LH + 4;
-    metrics.list_w = tftWidth - 20;
+    metrics.list_x = UIC(10, cui::PAD);
+    metrics.list_y = UIC(BORDER_PAD_Y + FM * LH + 4, cui::TOP + FM * LH + 2);
+    metrics.list_w = UIC(tftWidth - 20, tftWidth - 2 * cui::PAD);
     int footer_h = footerLines * (FP * LH + 4);
-    metrics.footer_y = tftHeight - footer_h - 10;
+    metrics.footer_y = UIC(tftHeight - footer_h - 10, tftHeight - footer_h - cui::PAD);
     metrics.list_h = metrics.footer_y - metrics.list_y - 2;
-    metrics.row_h = max(12, FP * LH + 4);
+    metrics.row_h = UIC(max(12, FP * LH + 4), cui::ROW_FP);
     metrics.visible_rows = max(1, metrics.list_h / metrics.row_h);
     return metrics;
 }
@@ -965,7 +968,14 @@ static void bleSpamRenderList(
     if (footer != nullptr) {
         tft.setTextColor(TFT_DARKGREY, bruceConfig.bgColor);
         tft.fillRect(8, metrics.footer_y, tftWidth - 16, FP * LH, bruceConfig.bgColor);
-        tft.drawCentreString(footer, tftWidth / 2, metrics.footer_y + 2, 1);
+#ifdef UI_COMPACT
+        if (uiCompact()) {
+            tft.drawCentreString(
+                uiTruncate(String(footer), tftWidth - 2 * cui::PAD, FP), tftWidth / 2, metrics.footer_y + 2, 1
+            );
+        } else
+#endif
+            tft.drawCentreString(footer, tftWidth / 2, metrics.footer_y + 2, 1);
     }
 }
 
@@ -1710,14 +1720,14 @@ static void bleSpamRenderConfigRows(
         bool selected = (cursor == i);
         bool editing = (editState.editing && editState.edit_row == i);
 
-        tft.fillRect(10, rowY, tftWidth - 20, rowH, bruceConfig.bgColor);
+        tft.fillRect(UIC(10, cui::PAD), rowY, UIC(tftWidth - 20, tftWidth - 2 * cui::PAD), rowH, bruceConfig.bgColor);
         uint16_t fg = selected ? TFT_YELLOW : bruceConfig.priColor;
         tft.setTextColor(fg, bruceConfig.bgColor);
-        tft.drawString(rows[i].label, 12, rowY + 2, 1);
+        tft.drawString(rows[i].label, UIC(12, cui::PAD + 2), rowY + 2, 1);
 
         String valueText = rows[i].value;
         if (editing) valueText = "[ " + valueText + " ]";
-        tft.drawRightString(valueText, tftWidth - 12, rowY + 2, 1);
+        tft.drawRightString(valueText, UIC(tftWidth - 12, tftWidth - cui::PAD - 2), rowY + 2, 1);
     }
 }
 
@@ -1738,22 +1748,28 @@ bleSpamConfigScreen(const BleSpamSelection &selection, BleSpamConfig &config, bo
         }
 
         if (redrawRows) {
-            int rowStart = BORDER_PAD_Y + FM * LH + 10;
+            int rowStart = UIC(BORDER_PAD_Y + FM * LH + 10, cui::TOP + FM * LH + 2);
             int footerH = FP * LH + 4;
-            int footerY = tftHeight - footerH - 8;
+            int footerY = UIC(tftHeight - footerH - 8, tftHeight - footerH - cui::PAD);
             int available = footerY - rowStart - 4;
             int rowH = max(1, min(FP * LH + 4, available / 5));
             int startRowY = rowStart + rowH * 4;
 
             bleSpamRenderConfigRows(config, cursor, editState, rowStart, rowH);
 
-            tft.fillRect(10, startRowY, tftWidth - 20, rowH, bruceConfig.bgColor);
+            tft.fillRect(
+                UIC(10, cui::PAD), startRowY, UIC(tftWidth - 20, tftWidth - 2 * cui::PAD), rowH,
+                bruceConfig.bgColor
+            );
             uint16_t startColor = (cursor == 4) ? TFT_YELLOW : bruceConfig.priColor;
             tft.setTextColor(startColor, bruceConfig.bgColor);
             tft.drawCentreString("[ Start ]", tftWidth / 2, startRowY + 2, 1);
 
             tft.setTextColor(TFT_DARKGREY, bruceConfig.bgColor);
-            tft.fillRect(8, footerY, tftWidth - 16, footerH, bruceConfig.bgColor);
+            tft.fillRect(
+                UIC(8, cui::PAD), footerY, UIC(tftWidth - 16, tftWidth - 2 * cui::PAD), footerH,
+                bruceConfig.bgColor
+            );
             tft.drawCentreString("Click=Select  ESC=Back", tftWidth / 2, footerY + 2, 1);
 
             redrawRows = false;
@@ -1849,9 +1865,9 @@ static void bleSpamRenderRunningScreen(
         String title = bleSpamGetDeviceName(selection.attack_type, selection.device_index);
         drawMainBorderWithTitle(bleSpamMakeTitle(title));
 
-        statsY = BORDER_PAD_Y + FM * LH + 8;
+        statsY = UIC(BORDER_PAD_Y + FM * LH + 8, cui::TOP + FM * LH + 2);
         int footerH = FP * LH + 4;
-        int footerY = tftHeight - footerH - 8;
+        int footerY = UIC(tftHeight - footerH - 8, tftHeight - footerH - cui::PAD);
         int sepGap = 4;
         int available = footerY - statsY - sepGap - 2;
         rowH = max(1, min(FP * LH + 4, available / 6));
@@ -1868,8 +1884,8 @@ static void bleSpamRenderRunningScreen(
     if (blinkDirty) {
         tft.setTextSize(FP);
         tft.setTextColor(TFT_MAGENTA, bruceConfig.bgColor);
-        int starX = tftWidth - 18;
-        int starY = BORDER_PAD_Y + 2;
+        int starX = UIC(tftWidth - 18, tftWidth - cui::PAD - LW);
+        int starY = UIC(BORDER_PAD_Y + 2, statsY);
         tft.fillRect(starX - 2, starY - 2, 12, 12, bruceConfig.bgColor);
         tft.drawString(blinkOn ? "*" : " ", starX, starY, 1);
     }
@@ -1911,7 +1927,7 @@ static bool bleSpamStoppedPrompt(const BleSpamSelection &selection, uint32_t sen
                 tft.setTextSize(FP);
                 char buf[32];
                 snprintf(buf, sizeof(buf), "Sent: %06lu  Pkt/s: 0.0", (unsigned long)sentCount);
-                int statsY = BORDER_PAD_Y + FM * LH + 8;
+                int statsY = UIC(BORDER_PAD_Y + FM * LH + 8, cui::TOP + FM * LH + 2);
                 tft.fillRect(10, statsY, tftWidth - 20, FP * LH + 6, bruceConfig.bgColor);
                 tft.drawString(buf, 12, statsY + 2, 1);
 
@@ -1923,7 +1939,7 @@ static bool bleSpamStoppedPrompt(const BleSpamSelection &selection, uint32_t sen
             }
 
             int rowH = max(12, FP * LH + 4);
-            int listY = BORDER_PAD_Y + FM * LH + 8 + rowH * 2;
+            int listY = UIC(BORDER_PAD_Y + FM * LH + 8 + rowH * 2, cui::TOP + FM * LH + 2 + rowH * 2);
             for (int i = 0; i < optionCount; i++) {
                 int rowY = listY + i * rowH;
                 bool selected = (i == cursor);
@@ -2108,7 +2124,7 @@ static int bleSpamTwoOptionPrompt(const String &title, const char *opt0, const c
                 layoutDrawn = true;
             }
             int rowH = max(12, FP * LH + 4);
-            int startY = BORDER_PAD_Y + FM * LH + 16;
+            int startY = UIC(BORDER_PAD_Y + FM * LH + 16, cui::TOP + FM * LH + 2);
             for (int i = 0; i < 2; i++) {
                 int rowY = startY + i * rowH;
                 bool sel = (i == cursor);
