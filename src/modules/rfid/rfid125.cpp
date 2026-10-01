@@ -12,6 +12,8 @@
 #include "core/sd_functions.h"
 #include <globals.h>
 
+#include "core/ui/compact.h"
+
 #define _HEX_DIGIT_ERROR 0xFF
 
 static uint8_t hex2digit(char ch) {
@@ -129,7 +131,7 @@ void RFID125::set_state(RFID125_State state) {
 
 void RFID125::cls() {
     drawMainBorder();
-    tft.setCursor(10, 28);
+    tft.setCursor(UIC(10, cui::PAD), UIC(28, cui::TOP));
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
 }
 

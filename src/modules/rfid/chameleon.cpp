@@ -10,6 +10,8 @@
 #include "core/display.h"
 #include "core/mykeyboard.h"
 
+#include "core/ui/compact.h"
+
 Chameleon::Chameleon() { setup(); }
 
 Chameleon::~Chameleon() {
@@ -228,7 +230,10 @@ void Chameleon::dumpHFCardDetails() {
 void Chameleon::dumpScanResults() {
     for (int i = _scanned_tags.size(); i > 0; i--) {
         if (_scanned_tags.size() > 5 && i <= _scanned_tags.size() - 5) return;
-        padprintln(String(i) + ": " + _scanned_tags[i - 1].tagType + " | " + _scanned_tags[i - 1].uid);
+        padprintln(UIC(String(i) + ": " + _scanned_tags[i - 1].tagType + " | " + _scanned_tags[i - 1].uid,
+                       uiTruncate(String(i) + ": " + _scanned_tags[i - 1].tagType + " | " +
+                                      _scanned_tags[i - 1].uid,
+                                  tftWidth - 2 * cui::PAD, FP)));
     }
 }
 

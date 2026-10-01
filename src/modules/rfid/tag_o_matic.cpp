@@ -18,6 +18,8 @@
 #include "PN532.h"
 #include "RFID2.h"
 
+#include "core/ui/compact.h"
+
 #define NDEF_DATA_SIZE 100
 #define SCAN_DUMP_SIZE 5
 
@@ -33,7 +35,7 @@ void displaySmallErrorToast(const String &txt) {
     tft.fillRoundRect(boxX, boxY, boxWidth, boxHeight, 5, TFT_RED);
     tft.setTextColor(TFT_WHITE, TFT_RED);
     tft.setTextSize(textSize);
-    tft.drawCentreString(txt, tftWidth / 2, boxY + 5);
+    tft.drawCentreString(UIC(txt, uiTruncate(txt, boxWidth - 8, textSize)), tftWidth / 2, boxY + 5);
 }
 } // namespace
 
@@ -286,7 +288,8 @@ void TagOMatic::dump_ndef_details() {
 void TagOMatic::dump_scan_results() {
     for (int i = _scanned_tags.size(); i > 0; i--) {
         if (_scanned_tags.size() > SCAN_DUMP_SIZE && i <= _scanned_tags.size() - SCAN_DUMP_SIZE) return;
-        padprintln(String(i) + ": " + _scanned_tags[i - 1]);
+        padprintln(UIC(String(i) + ": " + _scanned_tags[i - 1],
+                       uiTruncate(String(i) + ": " + _scanned_tags[i - 1], tftWidth - 2 * cui::PAD, FP)));
     }
 }
 

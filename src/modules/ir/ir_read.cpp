@@ -18,6 +18,8 @@
 #include <IRutils.h>
 #include <globals.h>
 
+#include "core/ui/compact.h"
+
 #define IR_FREQUENCY 38000
 #define DUTY_CYCLE 0.330000
 
@@ -203,7 +205,7 @@ void IrRead::begin() {
 
 void IrRead::cls() {
     drawMainBorder();
-    tft.setCursor(10, 28);
+    tft.setCursor(UIC(10, cui::PAD), UIC(28, cui::TOP));
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
 }
 
@@ -219,6 +221,33 @@ void IrRead::display_banner() {
 }
 
 void IrRead::display_btn_options() {
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        tft.setTextSize(FP);
+        tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+        String hints[3];
+        int count = 0;
+        if (_emulate_mode) {
+            hints[count++] = "Press [OK]   to send again";
+            hints[count++] = "Press [NEXT] for new signal";
+            hints[count++] = "Press [PREV] to save signal";
+        } else if (_read_signal) {
+            hints[count++] = "Press [OK]   to emulate signal";
+            hints[count++] = "Press [NEXT] to save signal";
+            hints[count++] = "Press [PREV] to discard";
+        } else {
+            if (quickloop) hints[count++] = "Press [NEXT] to skip button";
+            if (signals_read > 0) hints[count++] = "Press [OK]   to save device";
+        }
+        const int top = tftHeight - LH - 4 - 3 * cui::ROW_FP;
+        tft.fillRect(cui::PAD, top, tftWidth - 2 * cui::PAD, 3 * cui::ROW_FP, bruceConfig.bgColor);
+        for (int i = 0; i < count; i++)
+            uiDrawText(uiTruncate(hints[i], tftWidth - 2 * cui::PAD, FP), cui::PAD,
+                       top + i * cui::ROW_FP, TL_DATUM);
+        uiFootnote("Press [ESC]  to exit", false);
+        return;
+    }
+#endif
     tft.println("");
     tft.println("");
     if (_emulate_mode) {
@@ -254,7 +283,8 @@ void IrRead::read_signal() {
     padprint("RAW Data Captured:");
     String raw_signal = parse_raw_signal();
     _captured_raw_signal = raw_signal;
-    tft.println(raw_signal.substring(0, 45) + (raw_signal.length() > 45 ? "..." : ""));
+    tft.println(UIC(raw_signal.substring(0, 45) + (raw_signal.length() > 45 ? "..." : ""),
+                    uiTruncate(raw_signal, tftWidth - tft.getCursorX() - cui::PAD, FP)));
 
     display_btn_options();
     delay(500);

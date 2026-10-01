@@ -22,6 +22,8 @@
 #include <globals.h>
 #include <interface.h>
 
+#include "core/ui/compact.h"
+
 // Common IR remote control frequencies in Hz
 // Covers most consumer devices (30-56kHz range)
 const uint16_t IR_FREQUENCIES[] = {30000, 33000, 36000, 38000, 40000, 42000, 56000};
@@ -219,6 +221,21 @@ void renderModeSettings(JammerState &state, int &curY, int ySpacing) {
  * @param y Y position for rendering the stats
  */
 void displayStats(JammerState &state, int x, int y) {
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        uint32_t runtime = (millis() - state.startTime) / 1000;
+        if (state.jamming_active) { state.runtime = runtime; }
+        float jps = state.runtime > 0 ? (float)state.jamCount / state.runtime : 0;
+        tft.setTextSize(FP);
+        tft.setTextColor(TFT_GREEN, bruceConfig.bgColor);
+        uiDrawText(uiTruncate("Jams: " + String(state.jamCount), tftWidth - x - cui::PAD, FP), x, y, TL_DATUM);
+        uiDrawText("Time: " + String(state.runtime / 60) + ":" +
+                       (state.runtime % 60 < 10 ? "0" : "") + String(state.runtime % 60),
+                   x, y + cui::ROW_FP, TL_DATUM);
+        uiDrawText("J/s: " + String(jps, 1), x, y + 2 * cui::ROW_FP, TL_DATUM);
+        return;
+    }
+#endif
     // Set text properties for the stats display
     tft.setTextSize(FP);
     tft.setCursor(tftWidth / 2, tftHeight / 2);
@@ -245,6 +262,49 @@ void displayStats(JammerState &state, int x, int y) {
     tft.setCursor(tftWidth / 2, tft.getCursorY() + 12);
     tft.printf("J/s  : %.1f", jps);
 }
+
+#ifdef UI_COMPACT
+static void renderJammerCompact(JammerState &state, bool blinkState) {
+    drawMainBorderWithTitle("IR JAMMER", false);
+    const int top = cui::TOP + FM * LH + 2;
+    tft.fillRect(cui::PAD, top, tftWidth - 2 * cui::PAD, tftHeight - top - LH - 4, bruceConfig.bgColor);
+    tft.setTextSize(FP);
+
+    String rows[7] = {
+        "STATUS: " + String(state.jamming_active ? "ACTIVE" : "PAUSED"),
+        "FREQ: " + String(getFrequency(state.current_freq_idx) / 1000) + " kHz",
+        "MODE: " + String(getModeName(state.currentMode))
+    };
+    int count = 3;
+    switch (state.currentMode) {
+        case BASIC: rows[count++] = "TIMING: " + String(state.markTiming) + " us"; break;
+        case ENHANCED_BASIC:
+            rows[count++] = "MARK: " + String(state.markTiming) + " us";
+            rows[count++] = "SPACE: " + String(state.spaceTiming) + " us";
+            rows[count++] = "POWER: " + String(state.jamDensity);
+            break;
+        case SWEEP:
+            rows[count++] = "MIN: " + String(state.minTiming) + " us";
+            rows[count++] = "MAX: " + String(state.maxTiming) + " us";
+            rows[count++] = "SPEED: " + String(state.sweepSpeed);
+            rows[count++] = "POWER: " + String(state.jamDensity);
+            break;
+        case RANDOM:
+        case EMPTY: rows[count++] = "POWER: " + String(state.jamDensity); break;
+    }
+    for (int i = 0; i < count; i++) {
+        tft.setTextColor(state.settingIndex == i ? TFT_YELLOW : bruceConfig.priColor, bruceConfig.bgColor);
+        uiDrawText(uiTruncate(rows[i], tftWidth / 2 + 16, FP), cui::PAD, top + i * cui::ROW_FP, TL_DATUM);
+    }
+    displayStats(state, tftWidth / 2 + 24, top);
+    if (state.jamming_active && blinkState) {
+        tft.setTextColor(TFT_MAGENTA, bruceConfig.bgColor);
+        uiDrawText("*", tftWidth - cui::PAD, cui::TOP, TR_DATUM);
+    }
+    tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+    uiFootnote("SEL Set  NEXT/PREV Adjust  ESC Exit", false);
+}
+#endif
 
 /**
  * Process user input for navigating and changing jammer settings
@@ -398,6 +458,14 @@ void renderJammerUI(JammerState &state) {
     // Create blinking effect for active status indicator
     bool blinkState = (currentMillis % 600 < 300);
     state.lastUIUpdate = currentMillis;
+
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        renderJammerCompact(state, blinkState);
+        state.redraw = false;
+        return;
+    }
+#endif
 
     // Calculate layout dimensions based on screen size
     int contentWidth = tftWidth - 20;
