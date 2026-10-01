@@ -17,6 +17,8 @@
 #include <SD.h>
 #include <globals.h>
 
+#include "core/ui/compact.h"
+
 // ── Tuning Constants ────────────────────────────────────────────
 static constexpr int SCAN_TRIES_PER_CH = 6;
 static constexpr int SCAN_DWELL_US = 500;
@@ -596,9 +598,9 @@ static String mj_formatAddr(const MjTarget &t) {
 // ══════════════════════════════════════════════════════════════════
 
 static void mj_drawScanScreen(uint8_t currentCh, bool initial) {
-    int contentY = BORDER_PAD_Y + FM * LH + 4; // Below title
+    int contentY = UIC(BORDER_PAD_Y + FM * LH + 4, cui::TOP + FM * LH + 2); // Below title
     int footerH = FP * LH + 4;
-    int listY = contentY + 14; // Below status line
+    int listY = UIC(contentY + 14, contentY + cui::ROW_FP); // Below status line
     int listH = tftHeight - listY - footerH - 6;
 
     if (initial) { drawMainBorderWithTitle("MOUSEJACK SCAN"); }
@@ -612,11 +614,11 @@ static void mj_drawScanScreen(uint8_t currentCh, bool initial) {
     tft.drawCentreString(statusBuf, tftWidth / 2, contentY, 1);
 
     // Target list
-    int maxItems = listH / 12;
+    int maxItems = UIC(listH / 12, listH / cui::ROW_FP);
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
     for (int i = 0; i < maxItems && i < mj_targetCount; i++) {
-        int y = listY + i * 12;
-        tft.fillRect(7, y, tftWidth - 14, 12, bruceConfig.bgColor);
+        int y = UIC(listY + i * 12, listY + i * cui::ROW_FP);
+        tft.fillRect(7, y, tftWidth - 14, UIC(12, cui::ROW_FP), bruceConfig.bgColor);
         char line[40];
         snprintf(
             line,
@@ -626,11 +628,12 @@ static void mj_drawScanScreen(uint8_t currentCh, bool initial) {
             mj_formatAddr(mj_targets[i]).c_str(),
             mj_targets[i].channel
         );
-        tft.drawString(line, 12, y, 1);
+        tft.drawString(UIC(line, uiTruncate(String(line), tftWidth - 2 * cui::PAD - 6, FP)),
+                       UIC(12, cui::PAD + 2), y, 1);
     }
 
     // Footer (inside border)
-    int footerY = tftHeight - BORDER_PAD_X - FP * LH - 2;
+    int footerY = UIC(tftHeight - BORDER_PAD_X - FP * LH - 2, tftHeight - LH - 3);
     tft.fillRect(7, footerY, tftWidth - 14, FP * LH, bruceConfig.bgColor);
     tft.setTextColor(TFT_DARKGREY, bruceConfig.bgColor);
     tft.drawCentreString("[ESC] Stop", tftWidth / 2, footerY, 1);
@@ -820,7 +823,7 @@ static void mj_attackDucky(int targetIndex) {
     int lastSlash = filepath.lastIndexOf('/');
     String fname = (lastSlash >= 0) ? filepath.substring(lastSlash + 1) : filepath;
     tft.setTextColor(TFT_YELLOW, bruceConfig.bgColor);
-    tft.drawCentreString(fname, tftWidth / 2, cy, 1);
+    tft.drawCentreString(UIC(fname, uiTruncate(fname, tftWidth - 2 * cui::PAD, FP)), tftWidth / 2, cy, 1);
 
     if (!mj_validateNrfMode()) return;
 

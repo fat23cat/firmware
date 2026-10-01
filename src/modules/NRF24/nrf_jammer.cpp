@@ -4,6 +4,8 @@
 #include "nrf_common.h"
 #include <globals.h>
 
+#include "core/ui/compact.h"
+
 static void shuffleChannels(uint8_t *arr, size_t count) {
     for (size_t i = count - 1; i > 0; i--) {
         size_t j = esp_random() % (i + 1);
@@ -134,6 +136,30 @@ void nrf_jammer() {
             }
 
             if (redraw) {
+#ifdef UI_COMPACT
+                if (uiCompact()) {
+                    drawMainBorderWithTitle("NRF JAMMER", false);
+                    tft.fillRect(
+                        cui::PAD, cui::TOP + FM * LH + 2, tftWidth - 2 * cui::PAD,
+                        tftHeight - cui::TOP - FM * LH - LH - 5, bruceConfig.bgColor
+                    );
+                    tft.setTextSize(FP);
+                    tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+                    const String rows[] = {
+                        "STATUS: " + String(NRFOnline) + " ACTIVE",
+                        "MODE: " + String(modes[modeIndex].name),
+                        "HOP: " + String(hopping_mode == 0 ? "Sequential" : "FHSS"),
+                        "NEXT/PREV Switch mode",
+                        "SEL Switch hop mode"
+                    };
+                    int y = cui::TOP + FM * LH + 2;
+                    for (const String &row : rows) {
+                        uiDrawText(uiTruncate(row, tftWidth - 2 * cui::PAD, FP), cui::PAD, y, TL_DATUM);
+                        y += cui::ROW_FP;
+                    }
+                    uiFootnote("ESC Exit", false);
+                } else {
+#endif
                 drawMainBorderWithTitle("NRF JAMMER", false);
                 printSubtitle("NRF function Jammer");
                 padprintln("STATUS : " + String(NRFOnline) + " ACTIVE");
@@ -147,6 +173,9 @@ void nrf_jammer() {
                 padprintln("> Exit: Esc");
 
                 tft.drawRoundRect(5, 5, tftWidth - 10, tftHeight - 10, 5, bruceConfig.priColor);
+#ifdef UI_COMPACT
+                }
+#endif
                 if ((CHECK_NRF_UART(mode)) || (CHECK_NRF_BOTH(mode))) {
                     String Mode = modes[modeIndex].name;
                     Mode.replace(" ", "");

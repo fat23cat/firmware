@@ -3,6 +3,8 @@
 #include "protocols/rf_decoder.h"
 #include "rf_utils.h"
 #include <ELECHOUSE_CC1101_SRC_DRV.h>
+
+#include "core/ui/compact.h"
 static bool
 record_rmt_rx_done_callback(rmt_channel_t *channel, const rmt_rx_done_event_data_t *edata, void *user_data) {
     BaseType_t high_task_wakeup = pdFALSE;
@@ -19,8 +21,8 @@ void sinewave_animation() {
 
     tft.drawPixel(0, 0, 0);
 
-    int centerY = (tftHeight / 2) + 20;
-    int amplitude = (tftHeight / 2) - 40;
+    int centerY = UIC((tftHeight / 2) + 20, (cui::TOP + tftHeight) / 2 + 10);
+    int amplitude = UIC((tftHeight / 2) - 40, (tftHeight - cui::TOP - 2) / 4);
     int sinewaveWidth = 5;
 
     for (int x = 20; x < tftWidth - 20; x++) {
@@ -37,6 +39,36 @@ void sinewave_animation() {
 }
 
 void rf_raw_record_draw(RawRecordingStatus status) {
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        uiTitle("RF RECORD");
+        tft.setTextSize(FP);
+        tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+        const int y = cui::TOP + FM * LH + 2;
+        tft.fillRect(cui::PAD, y, tftWidth - 2 * cui::PAD, cui::ROW_FP, bruceConfig.bgColor);
+        if (status.frequency <= 0) {
+            uiDrawText("Looking for frequency...", cui::PAD, y, TL_DATUM);
+            uiFootnote("ESC Exit", false);
+        } else if (!status.recordingStarted) {
+            uiDrawText("Waiting for signal...", cui::PAD, y, TL_DATUM);
+            uiFootnote("SEL Stop  ESC Exit", false);
+            sinewave_animation();
+        } else if (status.recordingFinished) {
+            uiDrawText("Recording finished.", cui::PAD, y, TL_DATUM);
+            uiFootnote("SEL Save", false);
+        } else if (status.latestRssi < 0) {
+            uiDrawText(uiTruncate("Recording: " + String(status.frequency) + " MHz",
+                                  tftWidth - 2 * cui::PAD, FP), cui::PAD, y, TL_DATUM);
+            uiFootnote("SEL Stop", false);
+            const int centerY = (cui::TOP + tftHeight) / 2 + 10;
+            const int maxBarHeight = (tftHeight - cui::TOP - 2) / 4;
+            const int barHeight = constrain(map(status.latestRssi, -90, -45, 1, maxBarHeight), 1, maxBarHeight);
+            const int x = cui::PAD + status.rssiCount;
+            tft.drawFastVLine(x, centerY - barHeight, barHeight * 2, bruceConfig.priColor);
+        }
+        return;
+    }
+#endif
     tft.setCursor(20, 38);
     tft.setTextSize(FP);
     if (status.frequency <= 0) {
@@ -132,7 +164,7 @@ static void rf_raw_record_accept_capture(
         status.firstSignalTime = receivedTime;
         status.recordingStarted = true;
         tft.drawPixel(0, 0, 0);
-        tft.fillRect(10, 30, tftWidth - 20, tftHeight - 40, bruceConfig.bgColor);
+        tft.fillRect(UIC(10, cui::PAD), UIC(30, cui::TOP), UIC(tftWidth - 20, tftWidth - 2 * cui::PAD), UIC(tftHeight - 40, tftHeight - cui::TOP - cui::PAD), bruceConfig.bgColor);
     }
     status.lastSignalTime = receivedTime;
 }
@@ -242,7 +274,7 @@ void rf_raw_record_create(RawRecording &recorded, bool &returnToMenu) {
 
     // Erase sinewave animation
     tft.drawPixel(0, 0, 0);
-    tft.fillRect(10, 30, tftWidth - 20, tftHeight - 40, bruceConfig.bgColor);
+    tft.fillRect(UIC(10, cui::PAD), UIC(30, cui::TOP), UIC(tftWidth - 20, tftWidth - 2 * cui::PAD), UIC(tftHeight - 40, tftHeight - cui::TOP - cui::PAD), bruceConfig.bgColor);
     rf_raw_record_draw(status);
 
     // Start recording

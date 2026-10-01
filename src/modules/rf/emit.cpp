@@ -3,6 +3,8 @@
 #include <ELECHOUSE_CC1101_SRC_DRV.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+
+#include "core/ui/compact.h"
 // Global variables for shared state
 volatile bool outputState = false;
 volatile uint16_t rssiCount = 0;
@@ -17,14 +19,28 @@ TaskHandle_t rf_raw_emit_draw_handle = NULL;
 void rf_raw_emit_draw(void *parameter) {
     tft.fillScreen(bruceConfig.bgColor);
     drawMainBorder();
-    tft.setCursor(20, 38);
+#ifdef UI_COMPACT
+    if (uiCompact()) uiTitle("RF EMIT");
+#endif
+    tft.setCursor(UIC(20, cui::PAD), UIC(38, cui::TOP + FM * LH + 2));
     tft.setTextSize(FP);
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        uiDrawText(uiTruncate("Emitting: " + String(frequency) + " MHz", tftWidth - 2 * cui::PAD, FP),
+                   cui::PAD, cui::TOP + FM * LH + 2, TL_DATUM);
+        tft.setTextColor(getColorVariation(bruceConfig.priColor), bruceConfig.bgColor);
+        uiFootnote("SEL Stop", false);
+    } else {
+#endif
     tft.print("Emitting: ");
     tft.print(frequency);
     tft.print(" MHz");
     tft.setTextColor(getColorVariation(bruceConfig.priColor), bruceConfig.bgColor);
     tft.println("   Press [OK] to stop ");
+#ifdef UI_COMPACT
+    }
+#endif
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
 
     while (1) {
@@ -39,15 +55,15 @@ void rf_raw_emit_draw(void *parameter) {
 
         // Call the draw function
         // Calculate bar dimensions
-        int centerY = (TFT_WIDTH / 2) + 20;      // Center axis for the bars
-        int maxBarHeight = (TFT_WIDTH / 2) - 50; // Maximum height of the bars
+        int centerY = UIC((TFT_WIDTH / 2) + 20, (cui::TOP + tftHeight) / 2 + 10);      // Center axis for the bars
+        int maxBarHeight = UIC((TFT_WIDTH / 2) - 50, (tftHeight - cui::TOP - 2) / 4); // Maximum height of the bars
 
         // Draw the latest bar
         int rssi = outputState ? -45 : -90; // Use outputState to determine RSSI
         int barHeight = map(rssi, -90, -45, 1, maxBarHeight);
 
         // Calculate bar position
-        int x = 20 + (int)(rssiCount * 1.35);
+        int x = UIC(20 + (int)(rssiCount * 1.35), cui::PAD + rssiCount);
         int yTop = centerY - barHeight;
 
         // Draw the bar

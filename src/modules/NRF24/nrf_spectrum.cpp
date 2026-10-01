@@ -2,6 +2,8 @@
 #include "core/display.h"
 #include "core/mykeyboard.h"
 
+#include "core/ui/compact.h"
+
 #define CHANNELS 80
 #define RGB565(r, g, b) ((((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3)))
 uint8_t channel[CHANNELS];
@@ -32,6 +34,17 @@ String scanChannels(bool web) {
         int x = i * _BW;
         int c = i;
 
+#ifdef UI_COMPACT
+        if (uiCompact()) {
+            const int plotTop = cui::TOP + FM * LH + 2;
+            const int plotBottom = tftHeight - LH - 3;
+            const int mid = (plotTop + plotBottom) / 2;
+            const int drawLevel = min(level, (plotBottom - plotTop) / 2 - 2);
+            tft.drawFastVLine(x, plotTop, plotBottom - plotTop + 1, bruceConfig.bgColor);
+            tft.drawFastVLine(x, mid - drawLevel, drawLevel, bruceConfig.priColor);
+            tft.drawFastVLine(x, mid + 1, drawLevel, bruceConfig.secColor);
+        } else {
+#endif
         tft.drawFastVLine(
             x, tftHeight - (10 + level), level, (i % 2 == 0) ? bruceConfig.priColor : TFT_DARKGREY
         ); // for level display
@@ -42,6 +55,9 @@ String scanChannels(bool web) {
         tft.drawFastVLine(x, 0, level, bruceConfig.secColor); /// for top display
         // show 5 channel gap only
         if (c % 5 == 0 && c != 0) { tft.drawCentreString(String(c).c_str(), x, tftHeight / 2, 1); }
+#ifdef UI_COMPACT
+        }
+#endif
 
         if (web) {
             if (i > 0) result += ",";
@@ -49,17 +65,39 @@ String scanChannels(bool web) {
         }
     }
 
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        const int plotTop = cui::TOP + FM * LH + 2;
+        const int plotBottom = tftHeight - LH - 3;
+        const int mid = (plotTop + plotBottom) / 2;
+        tft.setTextSize(FP);
+        tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+        for (int c = 10; c < CHANNELS; c += 10)
+            uiDrawText(String(c), c * _BW, mid - LH / 2, TC_DATUM);
+    }
+#endif
+
     if (web) result += "}";
     return result; // return a string in this format "{1,32,45,32,84,32 .... 12,54,65}" with 80 values to be
                    // used in the WebUI (Future)
 }
 
 void nrf_spectrum() {
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        drawMainBorderWithTitle("NRF SPECTRUM");
+        tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+        uiFootnote("2.40 GHz   2.44 GHz   2.48 GHz", true);
+    } else {
+#endif
     tft.fillScreen(bruceConfig.bgColor);
     tft.setTextSize(FP);
     tft.drawString("2.40Ghz", 0, tftHeight - LH);
     tft.drawCentreString("2.44Ghz", tftWidth / 2, tftHeight - LH, 1);
     tft.drawRightString("2.48Ghz", tftWidth, tftHeight - LH, 1);
+#ifdef UI_COMPACT
+    }
+#endif
 
     if (nrf_start(NRF_MODE_SPI)) { // This function only works on SPI
         NRFradio.setAutoAck(false);

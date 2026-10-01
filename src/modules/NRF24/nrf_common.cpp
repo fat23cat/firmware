@@ -2,11 +2,39 @@
 #include "../../core/bus_HAL.h"
 #include "../../core/mykeyboard.h"
 
+#include "core/ui/compact.h"
+
 RF24 NRFradio(bruceConfigPins.NRF24_bus.io0, bruceConfigPins.NRF24_bus.cs);
 HardwareSerial NRFSerial = HardwareSerial(2); // Uses UART2 for External NRF's
 SPIClass *NRFSPI;
 
 void nrf_info() {
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        drawMainBorderWithTitle("NRF24 DISCLAIMER");
+        tft.setTextSize(FP);
+        tft.setTextColor(TFT_WHITE, bruceConfig.bgColor);
+        int y = cui::TOP + FM * LH + 2;
+        const String warning =
+            "These functions were made to be used in a controlled environment for STUDY only.\n\n"
+            "DO NOT use these functions to harm people or companies, you can go to jail!\n\n"
+            "This device is VERY sensible to noise, so long wires or passing near VCC line can make "
+            "things go wrong.";
+        int paragraph = 0;
+        for (const String &line : uiWrap(warning, tftWidth - 2 * cui::PAD, FP)) {
+            if (line.length() == 0) {
+                paragraph++;
+                y += 2;
+                continue;
+            }
+            if (paragraph == 2) tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+            uiDrawText(line, cui::PAD, y, TL_DATUM);
+            y += LH;
+        }
+        tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+        uiFootnote("Any key Continue", false);
+    } else {
+#endif
     tft.fillScreen(bruceConfig.bgColor);
     tft.setTextSize(FM);
     tft.setTextColor(TFT_RED, bruceConfig.bgColor);
@@ -23,6 +51,9 @@ void nrf_info() {
         "This device is VERY sensible to noise, so long wires or passing near VCC line can make "
         "things go wrong."
     );
+#ifdef UI_COMPACT
+    }
+#endif
     delay(1000);
     while (!check(AnyKeyPress)) { vTaskDelay(pdMS_TO_TICKS(1)); }
 }
