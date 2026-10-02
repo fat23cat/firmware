@@ -12,6 +12,8 @@
 #include "core/settings.h"
 #include <vector>
 
+#include "core/ui/compact.h"
+
 #define TAG_TIMEOUT_MS 100
 #define TAG_MAX_ATTEMPTS 5
 static constexpr uint32_t SRIX_EEPROM_WRITE_DELAY_MS = 15; // Delay for write operation
@@ -173,6 +175,30 @@ void SRIXTool::show_main_menu() {
         return;
     }
 
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        const String lines[] = {
+            "SRIX Tool for SRIX4K/512 v1.3",
+            "Features:",
+            "- Read/Clone complete tag (512B)",
+            "- Save/Load .srix dumps",
+            "- Read 8-byte UID",
+            "- PN532 module info"
+        };
+        tft.setTextSize(FP);
+        tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+        int y = cui::TOP + FM * LH + LH + 5;
+        for (const String &line : lines) {
+            uiDrawText(uiTruncate(line, tftWidth - 2 * cui::PAD, FP), cui::PAD, y, TL_DATUM);
+            y += cui::ROW_FP;
+        }
+        tft.setTextColor(getColorVariation(bruceConfig.priColor), bruceConfig.bgColor);
+        uiFootnote("Press [OK] to open menu", false);
+        tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+        _screen_drawn = true;
+        return;
+    }
+#endif
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
     tft.setTextSize(FP);
 
@@ -311,7 +337,15 @@ void SRIXTool::read_tag() {
     padprintln("");
 
     tft.setTextColor(getColorVariation(bruceConfig.priColor), bruceConfig.bgColor);
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        uiFootnote("Press [OK] for Main Menu", false);
+    } else {
+#endif
     padprintln("Press [OK] for Main Menu");
+#ifdef UI_COMPACT
+    }
+#endif
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
 
     _tag_read = true;
@@ -485,6 +519,20 @@ void SRIXTool::read_uid() {
         if (i == 1 || i == 3 || i == 5) { uid_line += " "; }
     }
     uid_line.toUpperCase();
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        const int y = cui::TOP + FM * LH + LH + 5;
+        tft.fillRect(cui::PAD, y, tftWidth - 2 * cui::PAD, tftHeight - y - LH - 3, bruceConfig.bgColor);
+        tft.setTextSize(FP);
+        uiDrawText("Tag detected!", cui::PAD, y, TL_DATUM);
+        uiDrawText(
+            uiTruncate(uid_line, tftWidth - 2 * cui::PAD, FP), cui::PAD, y + cui::ROW_FP, TL_DATUM
+        );
+        tft.setTextColor(getColorVariation(bruceConfig.priColor), bruceConfig.bgColor);
+        uiFootnote("Press [OK] for Main Menu", false);
+        tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+    } else {
+#endif
     padprintln(uid_line); // Output: "0123 4567 89AB CDEF"
     padprintln("");
     tft.setTextSize(FP);
@@ -493,6 +541,9 @@ void SRIXTool::read_uid() {
     tft.setTextColor(getColorVariation(bruceConfig.priColor), bruceConfig.bgColor);
     padprintln("Press [OK] for Main Menu");
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+#ifdef UI_COMPACT
+    }
+#endif
 
     _lastReadTime = millis();
     _screen_drawn = true;
@@ -514,6 +565,26 @@ void SRIXTool::show_pn_info() {
         return;
     }
 
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        uint8_t chip = (ver >> 24) & 0xFF;
+        uint8_t fw_major = (ver >> 16) & 0xFF;
+        uint8_t fw_minor = (ver >> 8) & 0xFF;
+        tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+        tft.setTextSize(FP);
+        int y = cui::TOP + FM * LH + LH + 5;
+        uiDrawText("PN532 Info:", cui::PAD, y, TL_DATUM);
+        y += cui::ROW_FP;
+        uiDrawText("Chip: PN5" + String(chip, HEX), cui::PAD, y, TL_DATUM);
+        y += cui::ROW_FP;
+        uiDrawText("Firmware: " + String(fw_major) + "." + String(fw_minor), cui::PAD, y, TL_DATUM);
+        y += cui::ROW_FP;
+        const String mode = _has_hardware_pins ? "Mode: Hardware (IRQ+RST)" : "Mode: I2C-Only (Polling)";
+        uiDrawText(mode, cui::PAD, y, TL_DATUM);
+        _screen_drawn = true;
+        return;
+    }
+#endif
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
     tft.setTextSize(FM);
     padprintln("PN532 Info:");
@@ -817,6 +888,25 @@ void SRIXTool::load_file_data(FS *fs, const String &filepath) {
     _screen_drawn = false;
 
     display_banner();
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        tft.setTextSize(FP);
+        tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+        int y = cui::TOP + FM * LH + LH + 5;
+        uiDrawText("File:", cui::PAD, y, TL_DATUM);
+        y += cui::ROW_FP;
+        uiDrawText(uiTruncateMiddle(filename, tftWidth - 2 * cui::PAD, FP), cui::PAD, y, TL_DATUM);
+        y += cui::ROW_FP;
+        uiDrawText(uiTruncate("UID: " + uid_from_file, tftWidth - 2 * cui::PAD, FP), cui::PAD, y, TL_DATUM);
+        y += cui::ROW_FP;
+        uiDrawText("Blocks: " + String(blocks_loaded), cui::PAD, y, TL_DATUM);
+        y += cui::ROW_FP;
+        uiDrawText("Select 'Write tag' to write", cui::PAD, y, TL_DATUM);
+        tft.setTextColor(getColorVariation(bruceConfig.priColor), bruceConfig.bgColor);
+        uiFootnote("Press [OK] to open menu", false);
+        tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+    } else {
+#endif
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
     tft.setTextSize(FM);
     padprintln("File:");
@@ -832,6 +922,9 @@ void SRIXTool::load_file_data(FS *fs, const String &filepath) {
     padprintln("Press [OK] to open menu");
     padprintln("Select 'Write tag' to write");
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+#ifdef UI_COMPACT
+    }
+#endif
 
     _lastReadTime = millis();
     _screen_drawn = true;

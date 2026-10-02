@@ -18,6 +18,8 @@ Thanks to @bmorcelli for his help doing a better code.
 #include "spam.h"
 #include "ui.h"
 
+#include "core/ui/compact.h"
+
 // Global flag to control the spam task
 volatile bool spamRunning = false;
 volatile bool stop_beacon = false;
@@ -164,11 +166,21 @@ void displaySpamStatus() {
     tft.fillScreen(bruceConfig.bgColor);
     drawTopCanvas();
     drawBottomCanvas();
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+        tft.setTextSize(FP);
+        uiDrawText("PwnGrid Spam Running...", cui::PAD, cui::TOP, TL_DATUM);
+    } else {
+#endif
     tft.fillRect(0, 20, tftWidth, tftHeight - 40, bruceConfig.bgColor);
     tft.setTextSize(1.5);
     tft.setCursor(0, 20);
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
     tft.println("PwnGrid Spam Running...");
+#ifdef UI_COMPACT
+    }
+#endif
 
 #if defined(HAS_TOUCH)
     TouchFooter();
@@ -211,6 +223,24 @@ void displaySpamStatus() {
         }
 
         // Update and display current face, name, and channel
+#ifdef UI_COMPACT
+        if (uiCompact()) {
+            tft.fillRect(cui::PAD, cui::TOP + cui::ROW_FP, tftWidth - 2 * cui::PAD, tftHeight - 15 - cui::TOP - cui::ROW_FP, bruceConfig.bgColor);
+            tft.setTextSize(FP);
+            tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+            uiDrawText(String("Flood:") + (change_identity ? "1" : "0"), cui::PAD, cui::TOP + cui::ROW_FP, TL_DATUM);
+            uiDrawText(String("DoScreen:") + (dos_pwnd ? "1" : "0"), tftWidth - cui::PAD, cui::TOP + cui::ROW_FP, TR_DATUM);
+            uiDrawText("Face:", cui::PAD, cui::TOP + 2 * cui::ROW_FP + 3, TL_DATUM);
+            String face = dos_pwnd ? String(pwnd_faces[0]) : String(faces[current_face_index]);
+            int newline = face.indexOf('\n');
+            if (newline >= 0) face = face.substring(0, newline);
+            uiDrawText(uiTruncate(face, tftWidth - 2 * cui::PAD, FP), cui::PAD, cui::TOP + 3 * cui::ROW_FP + 3, TL_DATUM);
+            uiDrawText("Name:", cui::PAD, cui::TOP + 4 * cui::ROW_FP + 3, TL_DATUM);
+            String name = dos_pwnd ? String(pwnd_names[0]) : String(names[current_name_index]);
+            uiDrawText(uiTruncate(name, tftWidth - 2 * cui::PAD, FP), cui::PAD, cui::TOP + 5 * cui::ROW_FP + 3, TL_DATUM);
+            uiDrawText("Channel: " + String(channels[current_channel_index]), cui::PAD, cui::TOP + 7 * cui::ROW_FP + 2, TL_DATUM);
+        } else {
+#endif
         tft.setCursor(45, 45);
         tft.printf("Flood:%s", change_identity ? "1" : "0");
         tft.setCursor(125, 45);
@@ -232,6 +262,9 @@ void displaySpamStatus() {
         }
         tft.setCursor(0, 110);
         tft.printf("Channel: %d  ", channels[current_channel_index]);
+#ifdef UI_COMPACT
+        }
+#endif
 
         // Update indices for next display
         current_face_index = (current_face_index + 1) % num_faces;

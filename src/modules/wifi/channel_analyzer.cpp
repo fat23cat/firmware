@@ -13,6 +13,8 @@
 #include <Arduino.h>
 #include <globals.h>
 
+#include "core/ui/compact.h"
+
 // 2.4GHz channels to sweep.
 static const uint8_t CA_CHANNELS[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 static const int CA_NCH = sizeof(CA_CHANNELS) / sizeof(CA_CHANNELS[0]);
@@ -69,8 +71,8 @@ static void
 ca_draw(const uint8_t *load, const uint8_t *peak, const int8_t *rssi, uint8_t curCh, uint16_t dwell) {
     drawMainBorder(false);
 
-    const int x0 = 8;                           // left of bars
-    const int top = 26;                         // below title
+    const int x0 = UIC(8, cui::PAD);             // left of bars
+    const int top = UIC(26, cui::TOP);           // below title
     const int bottom = tftHeight - 2 * LH * FP; // leave room for footer
     const int avail = bottom - top;
     const int rowH = avail / CA_NCH;
@@ -119,7 +121,7 @@ ca_draw(const uint8_t *load, const uint8_t *peak, const int8_t *rssi, uint8_t cu
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
     String foot = "Ch" + String(curCh) + " " + String(load[curCh]) + "% pk" + String(peak[curCh]) + "% " +
                   String(rssi[curCh]) + "dBm  dwell " + String(dwell) + "ms  ";
-    tft.drawString(foot, x0, bottom, 1);
+    tft.drawString(UIC(foot, uiTruncate(foot, tftWidth - x0 - cui::PAD, FP)), x0, bottom, 1);
 }
 
 void channel_analyzer_setup() {

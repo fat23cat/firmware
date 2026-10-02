@@ -2,6 +2,8 @@
 #include "interpreter.h"
 #include "core/utils.h"
 
+#include "core/ui/compact.h"
+
 static void js_log_func(void *opaque, const void *buf, size_t buf_len) { fwrite(buf, 1, buf_len, stdout); }
 
 extern "C" {
@@ -24,7 +26,7 @@ void interpreterHandler(void *pvParameters) {
     while (interpreter_state != 2) { vTaskDelay(pdMS_TO_TICKS(500)); }
 
     tft.fillScreen(TFT_BLACK);
-    tft.setTextSize(FM);
+    tft.setTextSize(UIC(FM, FP));
     tft.setTextColor(TFT_WHITE);
     bool psramAvailable = psramFound();
 

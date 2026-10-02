@@ -8,6 +8,8 @@
 #include <globals.h>
 #include <sstream>
 
+#include "core/ui/compact.h"
+
 #define RF_M5_SCAN_COOLDOWN_MS 500
 #define RF_M5_SCAN_DUPLICATE_MS 1500
 #define RF_M5_SCAN_RESYNC_MS 20
@@ -816,7 +818,7 @@ String rfReceiveSignal(float frequency, int max_loops, bool raw, bool headless) 
 
     if (!headless) {
         drawMainBorder();
-        tft.setCursor(10, 28);
+        tft.setCursor(UIC(10, cui::PAD), UIC(28, cui::TOP + 2));
         tft.setTextSize(FP);
         tft.println("Waiting for a " + String(frequency) + " MHz " + "signal.");
     }

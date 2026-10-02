@@ -10,6 +10,8 @@
 #include "core/led_control.h"
 #endif
 
+#include "core/ui/compact.h"
+
 /*********************************************************************
 **  Function: optionsMenu
 **  Main Config menu entry point
@@ -68,6 +70,9 @@ void ConfigMenu::displayUIMenu() {
             {"Orientation", [this]() { lambdaHelper(gsetRotation, true)(); }},
             {"UI Color",    [this]() { setUIColor(); }                      },
             {"UI Theme",    [this]() { setTheme(); }                        },
+#ifdef UI_COMPACT
+            {String("Compact UI: ") + (uiCompactSetting() ? "ON" : "OFF"), []() { uiToggleCompact(); }},
+#endif
             {"Back",        []() {}                                         },
         };
 

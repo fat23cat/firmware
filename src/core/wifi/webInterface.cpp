@@ -16,14 +16,14 @@
 #include <esp_heap_caps.h>
 #include <globals.h>
 
+#include "core/ui/compact.h" // Keep original source line numbers for non-compact builds.
+
 File uploadFile;
 FS _webFS = LittleFS;
 // WiFi as a Client
 const int default_webserverporthttp = 80;
-
 // WiFi as an Access Point
 IPAddress AP_GATEWAY(172, 0, 0, 1); // Gateway
-
 AsyncWebServer *server = nullptr; // initialise webserver
 const char *host = "bruce";
 String uploadFolder = "";
@@ -279,36 +279,36 @@ void drawWebUiScreen(bool mode_ap) {
     if (!mode_ap) txt = WiFi.localIP().toString();
     else txt = WiFi.softAPIP().toString();
 
-    int padX = 14;
-    int currentY = 55;
+    int padX = UIC(14, cui::PAD);
+    int currentY = UIC(55, cui::TOP + FM * LH + 2);
 
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
     tft.setTextSize(FP);
 
     if (mode_ap) {
         tft.setCursor(padX, currentY);
-        tft.print("Net: BruceNet/brucenet");
-        currentY += LH * FP + 6;
+        tft.print(UIC("Net: BruceNet/brucenet", uiTruncate("Net: BruceNet/brucenet", tftWidth - 2 * cui::PAD, FP)));
+        currentY += UIC(LH * FP + 6, cui::ROW_FP);
     }
 
     tft.setCursor(padX, currentY);
-    if (mdnsRunning) tft.print("Url: http://bruce.local");
-    currentY += LH * FP + 6;
+    if (mdnsRunning) tft.print(UIC("Url: http://bruce.local", uiTruncate("Url: http://bruce.local", tftWidth - 2 * cui::PAD, FP)));
+    currentY += UIC(LH * FP + 6, cui::ROW_FP);
 
     tft.setCursor(padX, currentY);
-    tft.print("IP:  " + txt);
-    currentY += LH * FP + 6;
+    tft.print(UIC("IP:  " + txt, uiTruncate("IP:  " + txt, tftWidth - 2 * cui::PAD, FP)));
+    currentY += UIC(LH * FP + 6, cui::ROW_FP);
 
     tft.setCursor(padX, currentY);
-    tft.print("Usr: " + String(bruceConfig.webUI.user));
-    currentY += LH * FP + 6;
+    tft.print(UIC("Usr: " + String(bruceConfig.webUI.user), uiTruncate("Usr: " + String(bruceConfig.webUI.user), tftWidth - 2 * cui::PAD, FP)));
+    currentY += UIC(LH * FP + 6, cui::ROW_FP);
 
     tft.setCursor(padX, currentY);
-    tft.print("Pwd: " + String(bruceConfig.webUI.pwd));
+    tft.print(UIC("Pwd: " + String(bruceConfig.webUI.pwd), uiTruncate("Pwd: " + String(bruceConfig.webUI.pwd), tftWidth - 2 * cui::PAD, FP)));
 
     tft.setTextColor(TFT_RED, bruceConfig.bgColor);
     tft.setTextSize(FP);
-    tft.drawCentreString("press Esc to stop", tftWidth / 2, tftHeight - 2 * LH * FP - 5, 1);
+    tft.drawCentreString("press Esc to stop", tftWidth / 2, UIC(tftHeight - 2 * LH * FP - 5, tftHeight - LH - 3), 1);
 
 #if defined(HAS_TOUCH)
     TouchFooter();

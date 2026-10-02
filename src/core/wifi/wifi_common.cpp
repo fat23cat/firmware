@@ -13,9 +13,10 @@
 #include <esp_netif.h>
 #include <globals.h>
 
+#include "core/ui/compact.h" // Keep original source line numbers for non-compact builds.
+
 static TaskHandle_t timezoneTaskHandle = NULL;
 static bool wifiTransitioning = false;
-
 esp_err_t wifiRawTx(wifi_interface_t ifx, const void *frame, int len, uint8_t retries) {
     esp_err_t err = esp_wifi_80211_tx(ifx, frame, len, false);
     for (uint8_t i = 0; err == ESP_ERR_NO_MEM && i < retries; i++) {
@@ -24,7 +25,6 @@ esp_err_t wifiRawTx(wifi_interface_t ifx, const void *frame, int len, uint8_t re
     }
     return err;
 }
-
 void ensureWifiPlatform() {
     static bool netifInitialized = false;
     static bool eventLoopCreated = false;
@@ -108,7 +108,7 @@ bool _connectToWifiNetwork(const String &ssid, const String &pwd) {
     RAM_LOG("wifi pre-mode"); // Wi-Fi is already up from the menu scan by this point
     drawMainBorderWithTitle("WiFi Connect");
     padprintln("");
-    padprint("Connecting to: " + ssid + ".");
+    padprint(UIC("Connecting to: " + ssid + ".", uiTruncate("Connecting to: " + ssid + ".", tftWidth - 2 * cui::PAD, FP)));
     WiFi.mode(WIFI_MODE_STA);
     RAM_LOG("wifi post-mode");
     vTaskDelay(10 / portTICK_PERIOD_MS);

@@ -7,6 +7,8 @@
 #include "modules/others/audio.h"
 #include <Arduino.h>
 
+#include "core/ui/compact.h"
+
 // ===== ENUMS & STRUCTS =====
 
 enum IconType { ICON_PREV, ICON_PLAY, ICON_PAUSE, ICON_NEXT, ICON_VOL, ICON_LOOP_ON, ICON_LOOP_OFF };
@@ -34,6 +36,20 @@ struct UILayout {
     int TEXT_SIZE_SMALL;
 
     void calculate() {
+#ifdef UI_COMPACT
+        if (uiCompact()) {
+            MARGIN_X = cui::PAD;
+            MARGIN_Y = cui::PAD;
+            HEADER_HEIGHT = cui::SB_H;
+            DISPLAY_HEIGHT = 30;
+            PROGRESS_HEIGHT = 8;
+            CONTROLS_HEIGHT = 50;
+            BUTTON_SIZE = 36;
+            TEXT_SIZE_LARGE = FP;
+            TEXT_SIZE_SMALL = FP;
+            return;
+        }
+#endif
         bool isLarge = (tftWidth > 200 && tftHeight > 200);
         MARGIN_X = isLarge ? 10 : 5;
         MARGIN_Y = isLarge ? 10 : 5;

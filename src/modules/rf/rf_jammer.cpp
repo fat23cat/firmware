@@ -5,6 +5,8 @@
 #include <ELECHOUSE_CC1101_SRC_DRV.h>
 #include <globals.h>
 
+#include "core/ui/compact.h"
+
 #define MAX_JAMMER_RUNTIME 30000 // 30 seconds max runtime for jammer (safety cutoff)
 
 static const uint32_t MAX_SEQUENCE = 50;
@@ -35,8 +37,8 @@ RFJamMode RFJammer::showModeMenu(bool defaultFull) {
             drawMainBorderWithTitle("RF JAMMER MODE");
             tft.setTextSize(FP);
 
-            int y = BORDER_PAD_Y + FM * LH + 4;
-            int lineH = max(14, tftHeight / (modeCount + 4));
+            int y = UIC(BORDER_PAD_Y + FM * LH + 4, cui::TOP + FM * LH + 2);
+            int lineH = UIC(max(14, tftHeight / (modeCount + 4)), cui::ROW_FP);
 
             for (int i = 0; i < modeCount; i++) {
                 int itemY = y + i * lineH;
@@ -61,7 +63,7 @@ RFJamMode RFJammer::showModeMenu(bool defaultFull) {
             tft.drawCentreString(descs[menuIdx], tftWidth / 2, descY + 2, 1);
 
             // Footer
-            int footerY = tftHeight - BORDER_PAD_X - FP * LH - 2;
+            int footerY = UIC(tftHeight - BORDER_PAD_X - FP * LH - 2, tftHeight - LH - 3);
             tft.fillRect(7, footerY, tftWidth - 14, FP * LH, bruceConfig.bgColor);
             tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
             tft.drawCentreString("[OK]Select [ESC]Back", tftWidth / 2, footerY, 1);
@@ -118,8 +120,8 @@ void RFJammer::setup() {
 void RFJammer::display_banner() {
     drawMainBorderWithTitle("RF JAMMER");
 
-    int y = BORDER_PAD_Y + FM * LH + 4;
-    int lineH = max(14, tftHeight / 10);
+    int y = UIC(BORDER_PAD_Y + FM * LH + 4, cui::TOP + FM * LH + 2);
+    int lineH = UIC(max(14, tftHeight / 10), cui::ROW_FP);
     tft.setTextSize(FP);
     char buf[40];
     uint16_t accent = getComplementaryColor2(bruceConfig.priColor);
@@ -165,7 +167,7 @@ void RFJammer::display_banner() {
     tft.drawString("JAMMING ACTIVE", tftWidth / 2 - 38, y + 2, 1);
 
     // Footer
-    int footerY = tftHeight - BORDER_PAD_X - FP * LH - 2;
+    int footerY = UIC(tftHeight - BORDER_PAD_X - FP * LH - 2, tftHeight - LH - 3);
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
     tft.drawCentreString("[ESC] Stop", tftWidth / 2, footerY, 1);
 }
@@ -175,8 +177,8 @@ void RFJammer::update_display(uint32_t elapsedMs) {
     unsigned long mins = secs / 60;
     secs %= 60;
 
-    int y = BORDER_PAD_Y + FM * LH + 4;
-    int lineH = max(14, tftHeight / 10);
+    int y = UIC(BORDER_PAD_Y + FM * LH + 4, cui::TOP + FM * LH + 2);
+    int lineH = UIC(max(14, tftHeight / 10), cui::ROW_FP);
     y += lineH * 2; // Skip to timer line
 
     uint16_t accent = getComplementaryColor2(bruceConfig.priColor);
@@ -360,8 +362,8 @@ void RFJammer::run_noise_jammer() {
     uint32_t lastDisplayTime = startTime;
 
     // Update mode badge text for noise mode
-    int y = BORDER_PAD_Y + FM * LH + 4;
-    int lineH = max(14, tftHeight / 10);
+    int y = UIC(BORDER_PAD_Y + FM * LH + 4, cui::TOP + FM * LH + 2);
+    int lineH = UIC(max(14, tftHeight / 10), cui::ROW_FP);
     y += lineH * 4; // ACTIVE line
     uint16_t accent = getComplementaryColor2(bruceConfig.priColor);
     tft.fillRect(7, y, tftWidth - 14, lineH, bruceConfig.bgColor);
@@ -386,9 +388,10 @@ void RFJammer::run_noise_jammer() {
             ELECHOUSE_cc1101.SetTx();
 
             // Show current modulation on display
-            int modY = BORDER_PAD_Y + FM * LH + 4 + max(14, tftHeight / 10) * 4;
-            tft.fillRect(7, modY, tftWidth - 14, max(14, tftHeight / 10), bruceConfig.bgColor);
-            tft.fillCircle(tftWidth / 2 - 50, modY + max(14, tftHeight / 10) / 2, 4, accent);
+            int modY = UIC(BORDER_PAD_Y + FM * LH + 4 + max(14, tftHeight / 10) * 4,
+                           cui::TOP + FM * LH + 2 + cui::ROW_FP * 4);
+            tft.fillRect(7, modY, tftWidth - 14, UIC(max(14, tftHeight / 10), cui::ROW_FP), bruceConfig.bgColor);
+            tft.fillCircle(tftWidth / 2 - 50, modY + UIC(max(14, tftHeight / 10), cui::ROW_FP) / 2, 4, accent);
             tft.setTextColor(accent, bruceConfig.bgColor);
             tft.setTextSize(FP);
             char modBuf[30];
@@ -487,8 +490,8 @@ void RFJammer::run_sweep_jammer() {
             lastDisplayTime = currentTime;
 
             // Update frequency display on sweep
-            int y = BORDER_PAD_Y + FM * LH + 4;
-            int lineH = max(14, tftHeight / 10);
+            int y = UIC(BORDER_PAD_Y + FM * LH + 4, cui::TOP + FM * LH + 2);
+            int lineH = UIC(max(14, tftHeight / 10), cui::ROW_FP);
             y += lineH; // Freq line
             tft.fillRect(7, y, tftWidth - 14, lineH, bruceConfig.bgColor);
             tft.setTextSize(FP);

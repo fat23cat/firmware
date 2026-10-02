@@ -5,6 +5,37 @@
 #include "core/display.h"
 #include "core/wifi/wifi_common.h"
 
+#include "core/ui/compact.h"
+
+#ifdef UI_COMPACT
+static void tcpCompactLog(const String &message, const char *title) {
+    const int left = cui::PAD;
+    const int right = tftWidth - cui::PAD;
+    const int bottom = tftHeight - LH - cui::PAD;
+    tft.setTextSize(FP);
+    if (tft.getCursorX() < left) tft.setCursor(left, tft.getCursorY());
+
+    for (size_t i = 0; i < message.length(); ++i) {
+        const char ch = message[i];
+        if (ch == '\r') {
+            tft.setCursor(left, tft.getCursorY());
+            continue;
+        }
+        if (ch == '\n' || tft.getCursorX() + FP * LW > right) {
+            tft.println();
+            tft.setCursor(left, tft.getCursorY());
+        }
+        if (tft.getCursorY() > bottom) {
+            drawMainBorderWithTitle(title);
+            tft.setTextSize(FP);
+            tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+            tft.setCursor(left, cui::TOP + FM * LH + 2);
+        }
+        if (ch != '\n') tft.write((uint8_t)ch);
+    }
+}
+#endif
+
 bool inputMode;
 
 void listenTcpPort() {
@@ -39,7 +70,7 @@ void listenTcpPort() {
 
         if (client) {
             Serial.println("Client connected");
-            tft.setCursor(10, tft.getCursorY());
+            tft.setCursor(UIC(10, cui::PAD), tft.getCursorY());
             tft.println("Client connected");
 
             while (client.connected()) {
@@ -55,7 +86,7 @@ void listenTcpPort() {
                     drawMainBorderWithTitle("LISTEN TCP");
                     tft.setTextSize(FP);
                     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
-                    tft.setCursor(10, BORDER_PAD_Y + FM * LH);
+                    tft.setCursor(UIC(10, cui::PAD), UIC(BORDER_PAD_Y + FM * LH, cui::TOP + FM * LH + 2));
                     if (keyString.length() > 0 && keyString != "\x1B") {
                         if (tft.getCursorY() > tftHeight - 3 * LH * FP) {
                             drawMainBorderWithTitle("LISTEN TCP");
@@ -68,7 +99,11 @@ void listenTcpPort() {
                     if (client.available()) {
                         String incomingData = client.readString();
                         if (tft.getCursorY() > tftHeight - 3 * LH * FP) drawMainBorderWithTitle("LISTEN TCP");
-                        padprint(incomingData);
+#ifdef UI_COMPACT
+                        if (uiCompact()) tcpCompactLog(incomingData, "LISTEN TCP");
+                        else
+#endif
+                            padprint(incomingData);
                         Serial.print(incomingData);
                     }
                     if (check(SelPress)) { inputMode = true; }
@@ -111,7 +146,7 @@ void clientTCP() {
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
 
     padprintln("Connecting to:");
-    tft.println(serverIP + ":" + portString);
+    tft.println(UIC(serverIP + ":" + portString, uiTruncate(serverIP + ":" + portString, tftWidth - 2 * cui::PAD, FP)));
 
     if (!client.connect(serverIP.c_str(), portNumber)) {
         displayError("Connection failed");
@@ -128,7 +163,7 @@ void clientTCP() {
             drawMainBorderWithTitle("TCP CLIENT");
             tft.setTextSize(FP);
             tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
-            tft.setCursor(10, BORDER_PAD_Y + FM * LH);
+            tft.setCursor(UIC(10, cui::PAD), UIC(BORDER_PAD_Y + FM * LH, cui::TOP + FM * LH + 2));
             if (keyString.length() > 0 && keyString != "\x1B") {
                 if (tft.getCursorY() > tftHeight - 3 * LH * FP) drawMainBorderWithTitle("LISTEN TCP");
                 padprint(keyString);
@@ -139,7 +174,11 @@ void clientTCP() {
             if (client.available()) {
                 String incomingData = client.readString();
                 if (tft.getCursorY() > tftHeight - 3 * LH * FP) drawMainBorderWithTitle("LISTEN TCP");
-                padprint(incomingData);
+#ifdef UI_COMPACT
+                if (uiCompact()) tcpCompactLog(incomingData, "TCP CLIENT");
+                else
+#endif
+                    padprint(incomingData);
                 Serial.print(incomingData);
             }
             if (check(SelPress)) { inputMode = true; }

@@ -13,6 +13,8 @@
 #include <functional>
 #include <vector>
 
+#include "core/ui/compact.h"
+
 #define SCAN_TIME 5        // Scan duration in seconds
 #define SCAN_INTERVAL 100  // BLE scan interval
 #define SCAN_WINDOW 99     // BLE scan window
@@ -114,6 +116,13 @@ void BLENinebot::setup() {
 }
 
 void BLENinebot::redrawMainBorder() {
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        drawMainBorder();
+        uiTitle("Ninebot Tuning");
+        return;
+    }
+#endif
     drawMainBorder();
     tft.drawString("-=Ninebot Tuning=-", (tftWidth / 2) - ((18 * 6) / 2), 12);
 }

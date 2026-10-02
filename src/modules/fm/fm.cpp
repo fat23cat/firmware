@@ -2,6 +2,8 @@
 #include "fm.h"
 #include "core/utils.h"
 
+#include "core/ui/compact.h"
+
 bool auto_scan = false;
 bool is_running = false;
 uint16_t fm_station = 10230; // Default set to 102.30 MHz
@@ -12,9 +14,17 @@ void set_auto_scan(bool new_value) { auto_scan = new_value; }
 void set_frq(uint16_t frq) { fm_station = frq; }
 
 void fm_banner() {
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        drawMainBorderWithTitle("BRUCE RADIO");
+    } else {
+#endif
     tft.fillScreen(bruceConfig.bgColor);
     tft.setCursor(10, 10);
     tft.drawCentreString("~== Bruce Radio ==~", tftWidth / 2, 10, SMOOTH_FONT);
+#ifdef UI_COMPACT
+    }
+#endif
     delay(500);
 }
 
@@ -198,15 +208,23 @@ void fm_spectrum() {
             noise_level = radio.currNoiseLevel;
             if (noise_level != 0) {
                 // Clear the display area
-                tft.fillRect(0, 40, tftWidth, tftHeight, bruceConfig.bgColor);
+                tft.fillRect(0, UIC(40, cui::TOP + FM * LH + 2), tftWidth, tftHeight, bruceConfig.bgColor);
                 // Draw waveform based on signal strength
                 for (size_t i = 0; i < noise_level; i++) {
                     int lineHeight = map(noise_level, 0, SIGNAL_STRENGTH_THRESHOLD, 0, tftHeight / 2);
                     int lineX =
                         map(i, 0, noise_level - 1, 0, tftWidth - 1); // Map i to within the display width
                     // Ensure drawing coordinates stay within the box bounds
-                    int startY = constrain(20 + tftHeight / 2 - lineHeight / 2, 20, 20 + tftHeight);
-                    int endY = constrain(20 + tftHeight / 2 + lineHeight / 2, 20, 20 + tftHeight);
+                    int startY = UIC(
+                        constrain(20 + tftHeight / 2 - lineHeight / 2, 20, 20 + tftHeight),
+                        constrain(cui::TOP + FM * LH + 2 + (tftHeight - cui::TOP - FM * LH - 2) / 2 - lineHeight / 2,
+                                  cui::TOP + FM * LH + 2, tftHeight - 2)
+                    );
+                    int endY = UIC(
+                        constrain(20 + tftHeight / 2 + lineHeight / 2, 20, 20 + tftHeight),
+                        constrain(cui::TOP + FM * LH + 2 + (tftHeight - cui::TOP - FM * LH - 2) / 2 + lineHeight / 2,
+                                  cui::TOP + FM * LH + 2, tftHeight - 2)
+                    );
                     tft.drawLine(lineX, startY, lineX, endY, bruceConfig.priColor);
                 }
             }
@@ -237,7 +255,7 @@ bool fm_setup(bool traffic_alert, bool silent) {
     // Clear screen
     if (!silent) {
         fm_banner();
-        tft.setCursor(10, 30);
+        tft.setCursor(UIC(10, cui::PAD), UIC(30, cui::TOP + FM * LH + 2));
         Serial.println("Setup Si4713");
         tft.println(" Setup Si4713");
         delay(1000);

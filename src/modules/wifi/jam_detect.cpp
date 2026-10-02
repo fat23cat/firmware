@@ -13,6 +13,8 @@
 #include <Arduino.h>
 #include <globals.h>
 
+#include "core/ui/compact.h"
+
 static const uint8_t JD_CHANNELS[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 static const int JD_NCH = sizeof(JD_CHANNELS) / sizeof(JD_CHANNELS[0]);
 
@@ -74,21 +76,25 @@ static void jd_stop_wifi() {
 
 static void
 jd_draw(const uint16_t *dps, const uint16_t *peak, uint32_t thr, uint8_t curCh, int attackCh) {
+#ifdef UI_COMPACT
+    if (uiCompact()) drawMainBorder(true);
+    else
+#endif
     drawMainBorderWithTitle("Jam Detect");
     tft.setTextSize(FP);
 
-    const int x0 = 8;
-    int y = 26;
+    const int x0 = UIC(8, cui::PAD);
+    int y = UIC(26, cui::TOP);
 
     // status banner
     bool attack = (attackCh >= 0);
     uint16_t sc = attack ? TFT_RED : TFT_GREEN;
-    tft.fillRect(x0, y, tftWidth - 2 * x0, 18, sc);
+    tft.fillRect(x0, y, tftWidth - 2 * x0, UIC(18, LH + 2), sc);
     tft.setTextColor(TFT_BLACK, sc);
     String banner = attack ? ("ATTACK ch" + String(attackCh) + "  " + String(dps[attackCh]) + "/s")
                            : "scanning... no jamming";
-    tft.drawCentreString(banner, tftWidth / 2, y + 3, 1);
-    y += 24;
+    tft.drawCentreString(banner, tftWidth / 2, y + UIC(3, 1), 1);
+    y += UIC(24, LH + 4);
 
     // per-channel deauth bars
     const int labelW = 28;
@@ -128,7 +134,13 @@ jd_draw(const uint16_t *dps, const uint16_t *peak, uint32_t thr, uint8_t curCh, 
     }
 
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
-    tft.drawString("scan ch" + String(curCh) + " thr" + String(thr) + "/s  UP/DN  ESC", x0, tftHeight - 12, 1);
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        String footer = "scan ch" + String(curCh) + " thr" + String(thr) + "/s  UP/DN  ESC";
+        tft.drawString(uiTruncate(footer, tftWidth - x0 - cui::PAD, FP), x0, tftHeight - 12, 1);
+    } else
+#endif
+        tft.drawString("scan ch" + String(curCh) + " thr" + String(thr) + "/s  UP/DN  ESC", x0, tftHeight - 12, 1);
 }
 
 void jam_detect_setup() {

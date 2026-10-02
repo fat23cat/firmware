@@ -11,6 +11,9 @@
 
 #include "driver/i2s_pdm.h"
 #include "driver/i2s_std.h"
+
+#include "core/ui/compact.h"
+
 static i2s_chan_handle_t i2s_chan = nullptr;
 #define I2S_NO_PIN I2S_GPIO_UNUSED
 #ifndef I2S_PIN_NO_CHANGE
@@ -211,14 +214,17 @@ bool InitI2SMicroPhone() {
 
 void mic_test_one_task() {
     tft.fillScreen(TFT_BLACK);
+#ifdef UI_COMPACT
+    if (uiCompact()) drawMainBorder(false);
+#endif
 
     // ===== CALCULATE DYNAMIC DIMENSIONS =====
-    const int MARGIN_X = (tftWidth > 200) ? 10 : 5;  // Change for margin
+    const int MARGIN_X = UIC((tftWidth > 200) ? 10 : 5, cui::PAD + 2);  // Change for margin
     const int MARGIN_Y = (tftHeight > 200) ? 10 : 5; // Change for margin
     const int displayWidth = tftWidth - (2 * MARGIN_X);
-    const int displayHeight = tftHeight - (2 * MARGIN_Y);
+    const int displayHeight = UIC(tftHeight - (2 * MARGIN_Y), tftHeight - (cui::TOP + 2) - cui::PAD - 2);
     const int displayX = MARGIN_X;
-    const int displayY = MARGIN_Y;
+    const int displayY = UIC(MARGIN_Y, cui::TOP + 2);
 
     // Alloc framebuffer
     uint16_t *frameBuffer;
@@ -510,12 +516,12 @@ void mic_record_app() {
 
     // ===== LAYOUT CONSTANTS =====
     const bool isTinyScreen = (tftHeight <= 150); // e.g. Cardputer: 135px tall
-    const int MARGIN = (tftWidth > 200) ? 10 : 5;
-    const int HEADER_HEIGHT = (tftHeight > 200) ? 35 : (isTinyScreen ? 22 : 25);
+    const int MARGIN = UIC((tftWidth > 200) ? 10 : 5, cui::PAD);
+    const int HEADER_HEIGHT = UIC((tftHeight > 200) ? 35 : (isTinyScreen ? 22 : 25), cui::SB_H);
     const int ITEM_HEIGHT = (tftHeight > 200) ? 30 : (isTinyScreen ? 18 : 22);
     const int ITEM_GAP = isTinyScreen ? 4 : 8;
     const int BUTTON_HEIGHT = (tftHeight > 200) ? 40 : (isTinyScreen ? 22 : 30);
-    const int TEXT_SIZE_LARGE = (tftWidth > 200) ? 2 : 1;
+    const int TEXT_SIZE_LARGE = UIC((tftWidth > 200) ? 2 : 1, FP);
     const int TEXT_SIZE_SMALL = 1;
     const int START_Y = HEADER_HEIGHT + (tftHeight > 200 ? 15 : (isTinyScreen ? 5 : 8));
 
@@ -802,6 +808,11 @@ void mic_record_app() {
 
             // Filename (truncated if too long)
             tft.setCursor(MARGIN, INFO_START_Y + 12);
+#ifdef UI_COMPACT
+            if (uiCompact()) {
+                tft.print(uiTruncateMiddle(String(filename), tftWidth - 2 * cui::PAD, FP));
+            } else {
+#endif
             const char *displayName = filename;
             int nameLen = strlen(filename);
             if (nameLen > (tftWidth / 6)) {
@@ -809,6 +820,9 @@ void mic_record_app() {
                 tft.print("...");
             }
             tft.print(displayName);
+#ifdef UI_COMPACT
+            }
+#endif
 
             // Stop instructions
             tft.setCursor(MARGIN, INFO_START_Y + 24);

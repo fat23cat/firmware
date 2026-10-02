@@ -4,6 +4,8 @@
 #include "core/display.h"
 #include <globals.h>
 
+#include "core/ui/compact.h"
+
 class MenuItemInterface {
 public:
     virtual ~MenuItemInterface() = default;
@@ -97,6 +99,9 @@ public:
 
     void drawTitle(float scale = 1) {
         int titleY = iconCenterY + iconAreaH / 2 + FG;
+#ifdef UI_COMPACT
+        if (uiCompact()) return uiMenuTitle(getName(), iconCenterX, titleY);
+#endif
 
         tft.setTextSize(FM);
         tft.drawPixel(0, 0, 0);

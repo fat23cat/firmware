@@ -10,6 +10,8 @@
 #include "BLE_Suite.h"
 #endif
 
+#include "core/ui/compact.h"
+
 #define SERVICE_UUID "1bc68b2a-f3e3-11e9-81b4-2a2ae2dbcce4"
 #define CHARACTERISTIC_RX_UUID "1bc68da0-f3e3-11e9-81b4-2a2ae2dbcce4"
 #define CHARACTERISTIC_TX_UUID "1bc68efe-f3e3-11e9-81b4-2a2ae2dbcce4"
@@ -64,6 +66,21 @@ char strID[18];
 char strAddl[200];
 
 void ble_info(const String &name, const String &address, const String &signal) {
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        drawMainBorderWithTitle("Information");
+        tft.setTextSize(FP);
+        tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+        const int width = tftWidth - 2 * cui::PAD;
+        int y = cui::TOP + FM * LH + 2;
+        uiDrawText(uiTruncate("Name: " + name, width, FP), cui::PAD, y, TL_DATUM);
+        y += cui::ROW_FP;
+        uiDrawText(uiTruncate("Address: " + address, width, FP), cui::PAD, y, TL_DATUM);
+        y += cui::ROW_FP;
+        uiDrawText(uiTruncate("Signal: " + signal + " dBm", width, FP), cui::PAD, y, TL_DATUM);
+        uiDrawText(uiTruncate("Press " + String(BTN_ALIAS) + " to act", width, FP), cui::PAD, tftHeight - LH - 3, TL_DATUM);
+    } else {
+#endif
     drawMainBorder();
     tft.setTextColor(bruceConfig.priColor);
     tft.drawCentreString("-=Information=-", tftWidth / 2, 28, SMOOTH_FONT);
@@ -71,6 +88,9 @@ void ble_info(const String &name, const String &address, const String &signal) {
     tft.drawString("Adresse: " + address, 10, 66);
     tft.drawString("Signal: " + String(signal) + " dBm", 10, 84);
     tft.drawCentreString("   Press " + String(BTN_ALIAS) + " to act", tftWidth / 2, tftHeight - 20, 1);
+#ifdef UI_COMPACT
+    }
+#endif
 
     delay(300);
     while (!check(SelPress)) {
@@ -315,16 +335,22 @@ void disPlayBLESend() {
     while (!check(EscPress)) {
         if (deviceConnected) {
             if (!wasConnected) {
-                tft.fillRect(10, 26, tftWidth - 20, tftHeight - 36, TFT_BLACK);
-                drawBLE_beacon(180, 28, TFT_BLUE);
+                tft.fillRect(
+                    UIC(10, cui::PAD), UIC(26, cui::TOP), UIC(tftWidth - 20, tftWidth - 2 * cui::PAD),
+                    UIC(tftHeight - 36, tftHeight - cui::TOP - cui::PAD), TFT_BLACK
+                );
+                drawBLE_beacon(UIC(180, tftWidth - 50), UIC(28, cui::TOP + 4), TFT_BLUE);
                 tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
-                tft.setTextSize(FM);
-                tft.setCursor(12, 50);
+                tft.setTextSize(UIC(FM, FP));
+                tft.setCursor(UIC(12, cui::PAD), UIC(50, cui::TOP + FM * LH + 2));
                 tft.printf("BLE Send\n");
-                tft.setTextSize(FM);
+                tft.setTextSize(UIC(FM, FP));
             }
-            tft.fillRect(10, 100, tftWidth - 20, 28, TFT_BLACK);
-            tft.setCursor(12, 100);
+            tft.fillRect(
+                UIC(10, cui::PAD), UIC(100, cui::TOP + FM * LH + 2 + 2 * cui::ROW_FP),
+                UIC(tftWidth - 20, tftWidth - 2 * cui::PAD), UIC(28, LH + 2), TFT_BLACK
+            );
+            tft.setCursor(UIC(12, cui::PAD), UIC(100, cui::TOP + FM * LH + 2 + 2 * cui::ROW_FP));
             if (senddata[0] % 4 == 0) {
                 tft.printf("0x%02X>    ", senddata[0]);
             } else if (senddata[0] % 4 == 1) {
@@ -346,18 +372,30 @@ void disPlayBLESend() {
         } else {
             if (wasConnected or first_run) {
                 first_run = false;
-                tft.fillRect(10, 26, tftWidth - 20, tftHeight - 36, TFT_BLACK);
-                tft.setTextSize(FM);
-                tft.setCursor(12, 50);
+                tft.fillRect(
+                    UIC(10, cui::PAD), UIC(26, cui::TOP), UIC(tftWidth - 20, tftWidth - 2 * cui::PAD),
+                    UIC(tftHeight - 36, tftHeight - cui::TOP - cui::PAD), TFT_BLACK
+                );
+                tft.setTextSize(UIC(FM, FP));
+                tft.setCursor(UIC(12, cui::PAD), UIC(50, cui::TOP + FM * LH + 2));
                 tft.setTextColor(TFT_RED);
                 tft.printf("BLE disconnect\n");
-                tft.setCursor(12, 75);
+                tft.setCursor(UIC(12, cui::PAD), UIC(75, cui::TOP + FM * LH + 2 + cui::ROW_FP));
                 tft.setTextColor(tft.color565(18, 150, 219));
 
+#ifdef UI_COMPACT
+                if (uiCompact()) {
+                    uiDrawText(uiTruncate("Name:" + blename, tftWidth - 2 * cui::PAD - 45, FP), cui::PAD,
+                               cui::TOP + FM * LH + 2 + cui::ROW_FP, TL_DATUM);
+                } else {
+#endif
                 tft.printf(String("Name:" + blename + "\n").c_str());
-                tft.setCursor(12, 100);
+#ifdef UI_COMPACT
+                }
+#endif
+                tft.setCursor(UIC(12, cui::PAD), UIC(100, cui::TOP + FM * LH + 2 + 2 * cui::ROW_FP));
                 tft.printf("UUID:1bc68b2a\n");
-                drawBLE_beacon(180, 40, TFT_DARKGREY);
+                drawBLE_beacon(UIC(180, tftWidth - 50), UIC(40, cui::TOP + 4), TFT_DARKGREY);
             }
             wasConnected = false;
         }

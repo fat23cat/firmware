@@ -14,6 +14,8 @@
 #include <globals.h>
 #include <vector>
 
+#include "core/ui/compact.h"
+
 extern BruceConfigPins bruceConfigPins;
 
 bool update = false;
@@ -25,6 +27,14 @@ bool intlora = true;
 std::vector<String> messages;
 int scrollOffset = 0;
 const int maxMessages = 19;
+
+#ifdef UI_COMPACT
+static int loraCompactRows() {
+    const int firstMessageY = cui::TOP + FM * LH + 2 + cui::ROW_FP;
+    const int footerY = tftHeight - LH - 3;
+    return max(1, (footerY - firstMessageY - 2) / cui::ROW_FP);
+}
+#endif
 
 #define spreadingFactor 9
 #define SignalBandwidth 31.25E3
@@ -189,7 +199,9 @@ void reciveMessage() {
         file.println(rcvmsg);
         file.close();
         messages.push_back(rcvmsg);
-        if (messages.size() > maxMessages) { scrollOffset = messages.size() - maxMessages; }
+        if (messages.size() > UIC(maxMessages, loraCompactRows())) {
+            scrollOffset = messages.size() - UIC(maxMessages, loraCompactRows());
+        }
         update = true;
     } else {
         Serial.printf("LoRa read failed: %d\n", state);
@@ -206,6 +218,26 @@ void reciveMessage() {
 
 void render() {
     if (!update) return;
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        drawMainBorderWithTitle("LORA CHAT");
+        tft.setTextSize(FP);
+        tft.setTextColor(0x6DFC, bruceConfig.bgColor);
+        int y = cui::TOP + FM * LH + 2;
+        if (!intlora) uiDrawText("LoRa Init Failed", cui::PAD, y, TL_DATUM);
+        else uiDrawText(uiTruncate("USRN: " + displayName, tftWidth - 2 * cui::PAD, FP), cui::PAD, y, TL_DATUM);
+        y += cui::ROW_FP;
+        int endLine = min((int)messages.size(), scrollOffset + loraCompactRows());
+        tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+        for (int i = scrollOffset; i < endLine; i++) {
+            uiDrawText(uiTruncate(messages[i], tftWidth - 2 * cui::PAD, FP), cui::PAD, y, TL_DATUM);
+            y += cui::ROW_FP;
+        }
+        uiFootnote("PREV/NEXT Scroll  SEL Send  ESC Back", false);
+        update = false;
+        return;
+    }
+#endif
     tft.setTextSize(1);
     tft.fillScreen(TFT_BLACK);
     tft.setTextColor(0x6DFC);
@@ -232,8 +264,8 @@ void loadMessages() {
         messages.push_back(line);
     }
     file.close();
-    if (messages.size() > maxMessages) {
-        scrollOffset = messages.size() - maxMessages;
+    if (messages.size() > UIC(maxMessages, loraCompactRows())) {
+        scrollOffset = messages.size() - UIC(maxMessages, loraCompactRows());
     } else {
         scrollOffset = 0;
     }
@@ -244,6 +276,14 @@ void sendmsg() {
     Serial.println("C bttn");
     tft.fillScreen(TFT_BLACK);
     if (!intlora) {
+#ifdef UI_COMPACT
+        if (uiCompact()) {
+            drawMainBorderWithTitle("LORA CHAT");
+            tft.setTextSize(FP);
+            tft.setTextColor(TFT_RED, bruceConfig.bgColor);
+            uiDrawText("LoRa not initialized!", cui::PAD, cui::TOP + FM * LH + 2, TL_DATUM);
+        } else {
+#endif
         tft.setTextColor(bruceConfig.priColor);
 
         tft.setTextColor(TFT_RED);
@@ -252,6 +292,9 @@ void sendmsg() {
         tft.print("LoRa not init!");
 
         tft.drawCentreString("LoRa not initialized!", tftWidth / 2, tftHeight / 2, 2);
+#ifdef UI_COMPACT
+        }
+#endif
         delay(1500);
         update = true;
         return;
@@ -272,7 +315,9 @@ void sendmsg() {
     file.close();
 
     messages.push_back(msg);
-    if (messages.size() > maxMessages) { scrollOffset = messages.size() - maxMessages; }
+    if (messages.size() > UIC(maxMessages, loraCompactRows())) {
+        scrollOffset = messages.size() - UIC(maxMessages, loraCompactRows());
+    }
     msg = "";
 }
 
@@ -286,7 +331,9 @@ void upress() {
 
 void downpress() {
     Serial.println("Down Pressed");
-    if (scrollOffset < messages.size() - maxMessages) {
+    if (UIC(scrollOffset < messages.size() - maxMessages,
+            messages.size() > (size_t)loraCompactRows() &&
+                scrollOffset < messages.size() - loraCompactRows())) {
         scrollOffset++;
         update = true;
     }

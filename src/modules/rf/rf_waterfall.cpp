@@ -1,4 +1,6 @@
 #include "rf_waterfall.h"
+
+#include "core/ui/compact.h"
 #ifndef TFT_MOSI
 #define TFT_MOSI -1
 #endif
@@ -63,7 +65,7 @@ void rf_waterfall_run() {
     float f_end = m_rf_waterfall_end_freq;
     const int screen_width = tft.width();
     const int screen_height = tft.height();
-    const int display_top = screen_height / 5;
+    const int display_top = UIC(screen_height / 5, cui::TOP + 3 * cui::ROW_FP);
     float f_freq_step;
 
     // Alloc framebuffer
@@ -76,7 +78,10 @@ void rf_waterfall_run() {
     int max_rssi = -100;
     unsigned long lastMaxUpdate = millis();
 
-    tft.fillRect(0, 0, screen_width, display_top, TFT_BLACK);
+#ifdef UI_COMPACT
+    if (uiCompact()) drawMainBorder();
+#endif
+    tft.fillRect(0, UIC(0, cui::TOP), screen_width, UIC(display_top, display_top - cui::TOP), TFT_BLACK);
 
     int selected_item = 0;
     bool exitting = false;
@@ -86,7 +91,7 @@ void rf_waterfall_run() {
         for (int i = 0; i < 4; i++) {
             int x = i * (screen_width / 4);
             float f_freq = f_start + (f_end - f_start) * i / 4.0;
-            tft.setCursor(x, 0);
+            tft.setCursor(x, UIC(0, cui::TOP));
             tft.setTextSize(1);
 
             if (i == 0 && selected_item == 0) {
@@ -97,7 +102,7 @@ void rf_waterfall_run() {
                 tft.setTextColor(TFT_WHITE, TFT_BLACK);
             }
 
-            tft.drawFastVLine(x, 0, tft.height(), TFT_DARKGREY);
+            tft.drawFastVLine(x, UIC(0, display_top), UIC(tft.height(), screen_height - display_top), TFT_DARKGREY);
             tft.print(String(f_freq, 1));
         }
 
@@ -180,8 +185,8 @@ void rf_waterfall_run() {
         if (millis() - lastMaxUpdate >= 5000) {
             max_rssi = temp_max_rssi;
             max_freq = temp_max_freq;
-            tft.fillRect(0, 10, screen_width, 10, TFT_BLACK);
-            tft.setCursor(3, 10);
+            tft.fillRect(0, UIC(10, cui::TOP + cui::ROW_FP), screen_width, 10, TFT_BLACK);
+            tft.setCursor(3, UIC(10, cui::TOP + cui::ROW_FP));
             tft.setTextSize(1);
             tft.setTextColor(TFT_YELLOW, TFT_BLACK);
             tft.printf("%d dBm @ %.3f", max_rssi, max_freq);
@@ -189,7 +194,7 @@ void rf_waterfall_run() {
             lastMaxUpdate = millis();
         }
 
-        tft.setCursor(3, 20);
+        tft.setCursor(3, UIC(20, cui::TOP + 2 * cui::ROW_FP));
         tft.setTextColor(TFT_DARKCYAN);
         tft.print("[OK] Item [PREV/NEXT] Value ");
 

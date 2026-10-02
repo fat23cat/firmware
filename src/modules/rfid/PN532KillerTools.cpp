@@ -15,6 +15,8 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 
+#include "core/ui/compact.h"
+
 #if defined(ARDUINO_M5STICK_C_PLUS) || defined(ARDUINO_M5STICK_C_PLUS2)
 
 #define TXD_PIN (GPIO_NUM_25)
@@ -27,6 +29,18 @@
 
 #define UDP_REMOTE_TIMEOUT_MS 60000UL
 #define TCP_REMOTE_TIMEOUT_MS 60000UL
+
+#ifdef UI_COMPACT
+namespace {
+// Shared envelope for the 70x50 card and the MFKey icons (up to 55 px tall).
+constexpr int16_t compactIconWidth = 70;
+constexpr int16_t compactIconX = cui::PAD;
+constexpr int16_t compactIconY = cui::TOP + FM * LH + cui::ROW_FP;
+constexpr int16_t compactLabelX = compactIconX + compactIconWidth + 2 * cui::PAD;
+constexpr int16_t compactLabelY = compactIconY + LH + 1;
+constexpr int16_t compactSecondRowY = compactLabelY + cui::ROW_FP;
+} // namespace
+#endif
 
 extern BLEServer *pServer;
 extern BLEService *pService;
@@ -82,6 +96,18 @@ void PN532KillerTools::displayInitialScreen() {
     String line2 = "via UART port.";
     String line3 = "Press OK to check device type.";
 
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        int y = cui::TOP + FM * LH + 8;
+        tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+        for (const String &line : {line1, line2, line3}) {
+            uiDrawText(uiTruncate(line, tftWidth - 2 * cui::PAD, FP), tftWidth / 2, y, TC_DATUM);
+            y += cui::ROW_FP;
+        }
+        delay(200);
+        return;
+    }
+#endif
     int leftX = (tftWidth - line1.length() * 6 * FP) / 2;
     tft.setCursor(leftX, baseY);
     tft.println(line1);
@@ -552,17 +578,17 @@ void PN532KillerTools::setSnifferMode() {
     String tagType = "MFC 1K";
     String snifferType = "";
     if (_snifferType == PN532KillerCmd::SnifferType::MFKey32v2) {
-        drawMfkey32Icon(tftWidth / 4 - 40, (tftHeight) / 2 - 5);
+        drawMfkey32Icon(UIC(tftWidth / 4 - 40, compactIconX), UIC((tftHeight) / 2 - 5, compactIconY));
         snifferType = "MFKey32v2";
         printCenterFootnote("Press Next to set UID");
     } else {
-        drawMfkey64Icon(tftWidth / 4 - 40, (tftHeight) / 2 - 5);
+        drawMfkey64Icon(UIC(tftWidth / 4 - 40, compactIconX), UIC((tftHeight) / 2 - 5, compactIconY));
         snifferType = "MFKey64";
     }
-    tft.setTextSize(FM);
-    tft.setCursor(tftWidth / 2 - 20, tftHeight / 2 + 5);
+    tft.setTextSize(UIC(FM, FP));
+    tft.setCursor(UIC(tftWidth / 2 - 20, compactLabelX), UIC(tftHeight / 2 + 5, compactLabelY));
     tft.print(tagType);
-    tft.setCursor(tftWidth / 2 - 20, tftHeight / 2 + FM * 10 + 5);
+    tft.setCursor(UIC(tftWidth / 2 - 20, compactLabelX), UIC(tftHeight / 2 + FM * 10 + 5, compactSecondRowY));
     tft.print(snifferType);
 }
 
@@ -584,12 +610,12 @@ void PN532KillerTools::setReaderMode() {
     displayBanner();
     printSubtitle("Reader Mode");
     // Regular PN532 does not display ISO15693 text (if not supported)
-    drawCreditCard(tftWidth / 4 - 40, (tftHeight) / 2 - 10);
-    tft.setTextSize(FM);
-    tft.setCursor(tftWidth / 2 - 20, tftHeight / 2);
+    drawCreditCard(UIC(tftWidth / 4 - 40, compactIconX), UIC((tftHeight) / 2 - 10, compactIconY));
+    tft.setTextSize(UIC(FM, FP));
+    tft.setCursor(UIC(tftWidth / 2 - 20, compactLabelX), UIC(tftHeight / 2, compactLabelY));
     tft.print("ISO14443");
     if (_isPn532killer) { // Only enhanced version shows ISO15693 hint
-        tft.setCursor(tftWidth / 2 - 20, tftHeight / 2 + FM * 10);
+        tft.setCursor(UIC(tftWidth / 2 - 20, compactLabelX), UIC(tftHeight / 2 + FM * 10, compactSecondRowY));
         tft.print("ISO15693");
     }
     printCenterFootnote("Press OK to select mode");
@@ -626,6 +652,17 @@ void PN532KillerTools::readTagUid() {
 }
 
 void PN532KillerTools::printUid(const char *protocol, const char *uid) {
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        tft.setTextSize(FP);
+        tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+        const int y = cui::TOP + FM * LH + LH + 8;
+        uiDrawText(uiTruncate(protocol, tftWidth - 2 * cui::PAD, FP), tftWidth / 2, y, TC_DATUM);
+        uiDrawText(uiTruncateMiddle(uid, tftWidth - 2 * cui::PAD, FP), tftWidth / 2,
+                   y + cui::ROW_FP, TC_DATUM);
+        return;
+    }
+#endif
     tft.setTextSize(FM);
     tft.setCursor((tftWidth - strlen(protocol) * 6 * FM) / 2, tftHeight / 2);
     tft.println(protocol);
@@ -662,8 +699,8 @@ void PN532KillerTools::setEmulatorNextSlot(bool reverse, bool redrawTypeName) {
     if (redrawTypeName) {
         displayBanner();
         printSubtitle("Emulator Mode");
-        drawCreditCard(tftWidth / 4 - 40, (tftHeight) / 2 - 5);
-        tft.setTextSize(FM);
+        drawCreditCard(UIC(tftWidth / 4 - 40, compactIconX), UIC((tftHeight) / 2 - 5, compactIconY));
+        tft.setTextSize(UIC(FM, FP));
         String typeName;
         switch (_tagType) {
             case PN532KillerCmd::TagType::MFC1K: typeName = "MFC 1K"; break;
@@ -672,11 +709,22 @@ void PN532KillerTools::setEmulatorNextSlot(bool reverse, bool redrawTypeName) {
             case PN532KillerCmd::TagType::EM4100: typeName = "EM4100"; break;
             default: typeName = "Unknown"; break;
         }
-        tft.setCursor(tftWidth / 2 - 20, tftHeight / 2 + 5);
+        tft.setCursor(UIC(tftWidth / 2 - 20, compactLabelX), UIC(tftHeight / 2 + 5, compactLabelY));
         tft.print(typeName);
     }
 
     String slotText = String(_pn532Killer.tagIndex + 1) + "/8";
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        const int x = compactLabelX;
+        const int y = compactSecondRowY;
+        tft.fillRect(x, y, tftWidth - x - cui::PAD, LH, bruceConfig.bgColor);
+        tft.setTextSize(FP);
+        tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
+        uiDrawText("Slot: " + slotText, x, y, TL_DATUM);
+        return;
+    }
+#endif
     int slotLabelX = tftWidth / 2 - 20;
     int slotLabelY = tftHeight / 2 + FM * 10 + 5;
     tft.setTextSize(FM);
@@ -830,16 +878,16 @@ bool PN532KillerTools::enableUdpDataTransfer() {
     String ipLine = String("UDP:") + ip.toString();
     String portLine = String("Port: 18888");
 
-    tft.setTextSize(FM);
-    int margin = tftWidth / 16;
+    tft.setTextSize(UIC(FM, FP));
+    int margin = UIC(tftWidth / 16, cui::PAD + 4);
     if (margin < 6) margin = 6;
     if (margin > 24) margin = 24;
     int blockW = tftWidth - margin * 2;
-    int baseY = tftHeight / 2 - 10;
-    tft.fillRect(margin - 4, baseY - 4, blockW + 8, FM * 24 + 8, TFT_BLACK);
+    int baseY = UIC(tftHeight / 2 - 10, cui::TOP + FM * LH + 8);
+    tft.fillRect(margin - 4, baseY - 4, blockW + 8, UIC(FM * 24 + 8, 2 * cui::ROW_FP + 8), TFT_BLACK);
     tft.setCursor(margin, baseY);
-    tft.print(ipLine);
-    tft.setCursor(margin, baseY + FM * 12);
+    tft.print(UIC(ipLine, uiTruncate(ipLine, tftWidth - margin - cui::PAD, FP)));
+    tft.setCursor(margin, UIC(baseY + FM * 12, baseY + cui::ROW_FP));
     tft.print(portLine);
     printCenterFootnote("Waiting for UDP client...");
 
@@ -872,15 +920,15 @@ bool PN532KillerTools::enableTcpDataTransfer() {
     displayBanner();
     printSubtitle("TCP Reader Mode");
     IPAddress ip = WiFi.isConnected() ? WiFi.localIP() : WiFi.softAPIP();
-    tft.setTextSize(FM);
-    int margin = tftWidth / 16;
+    tft.setTextSize(UIC(FM, FP));
+    int margin = UIC(tftWidth / 16, cui::PAD + 4);
     if (margin < 6) margin = 6;
     if (margin > 24) margin = 24;
-    int baseY = tftHeight / 2 - 10;
-    tft.fillRect(margin - 4, baseY - 4, tftWidth - margin * 2 + 8, FM * 24 + 8, TFT_BLACK);
+    int baseY = UIC(tftHeight / 2 - 10, cui::TOP + FM * LH + 8);
+    tft.fillRect(margin - 4, baseY - 4, tftWidth - margin * 2 + 8, UIC(FM * 24 + 8, 2 * cui::ROW_FP + 8), TFT_BLACK);
     tft.setCursor(margin, baseY);
-    tft.print(String("TCP:") + ip.toString());
-    tft.setCursor(margin, baseY + FM * 12);
+    tft.print(UIC(String("TCP:") + ip.toString(), uiTruncate(String("TCP:") + ip.toString(), tftWidth - margin - cui::PAD, FP)));
+    tft.setCursor(margin, UIC(baseY + FM * 12, baseY + cui::ROW_FP));
     tft.print("Port: 18889");
     printCenterFootnote("Waiting TCP client...");
     delay(150);

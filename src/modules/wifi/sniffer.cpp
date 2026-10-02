@@ -43,6 +43,8 @@
 #endif
 #include "modules/wifi/wifi_atks.h" // to use deauth frames and cmds
 
+#include "core/ui/compact.h" // Keep original source line numbers for non-compact builds.
+
 //===== SETTINGS =====//
 #define FILENAME "raw_"
 #define SAVE_INTERVAL 10            // save new file every 30s
@@ -50,7 +52,6 @@
 #define HOP_INTERVAL 214            // in ms (only necessary if channelHopping is true)
 #define DEAUTH_INTERVAL (15 * 1000) // Send deauth packets every ms
 #define EAPOL_ONLY true
-
 //===== Run-Time variables =====//
 unsigned long lastTime = 0;
 unsigned long lastChannelChange = 0;
@@ -67,7 +68,6 @@ uint32_t deauth_counter = 0;
 uint32_t beacon_frames = 0;
 uint32_t start_time = 0;
 long deauth_tmp = 0;
-
 File _pcap_file;
 File _deauth_file;
 bool deauthFileOpen = false;
@@ -1127,7 +1127,7 @@ static void sendDeauthNow() {
     if (deauth_sent) {
         tft.setTextSize(1);
         tft.setTextDatum(0);
-        tft.drawString("Deauth sent.", DEAUTH_MSG_X, DEAUTH_MSG_Y);
+        tft.drawString("Deauth sent.", UIC(DEAUTH_MSG_X, cui::PAD), UIC(DEAUTH_MSG_Y, tftHeight - 2 * cui::ROW_FP - 4));
         deauth_displayed = true;
         deauth_display_ts = millis();
     }
@@ -1170,7 +1170,7 @@ void sniffer_setup() {
 
     tft.setTextSize(FP);
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
-    tft.setCursor(10, BORDER_PAD_Y + FM * LH);
+    tft.setCursor(UIC(10, cui::PAD), UIC(BORDER_PAD_Y + FM * LH, cui::TOP + FM * LH + 2));
     tft.println("Sniffing Started");
 
     sniffer_reset_handshake_cache(); // Need to clear to restart HS count
@@ -1378,7 +1378,32 @@ void sniffer_setup() {
             } else {
                 activeFile += "handshake pcaps";
             }
-            padprintln(activeFile);
+#ifdef UI_COMPACT
+            if (uiCompact()) {
+                const int x = cui::PAD;
+                const int width = tftWidth - 2 * x;
+                int y = cui::TOP + FM * LH + 2;
+                tft.fillRect(x, y, width, tftHeight - y - cui::PAD, bruceConfig.bgColor);
+                auto row = [&](const String &s) {
+                    uiDrawText(uiTruncate(s, width, FP), x, y, TL_DATUM);
+                    y += cui::ROW_FP;
+                };
+                row(uiTruncateMiddle(activeFile, width, FP));
+                row("Mode: " + currentModeString());
+                row(deauth ? "Deauth: " + String(deauth_counter) + " sent" : "Silent mode.");
+                row("Run time " + String(runtime / 60) + ":" + String(runtime % 60));
+                size_t activeOnChannel = countActiveBeaconsOnChannel(all_wifi_channels[ch]);
+                row("Beacons " + String(beacon_frames) + " / ch " + String(activeOnChannel));
+                std::vector<String> recentSsids = recentSsidsOnChannel(all_wifi_channels[ch], 5);
+                if (!recentSsids.empty()) row("SSID: " + recentSsids[0]);
+                uiDrawText(uiTruncate("Packets " + String(packet_counter), width, FP), x, tftHeight - 2 * cui::ROW_FP - 3, TL_DATUM);
+                uiDrawText(uiTruncate("EAPOL:" + String(num_EAPOL) + " HS:" + String(num_HS), width / 2, FP), x, tftHeight - cui::ROW_FP - 3, TL_DATUM);
+                uiDrawText("Ch" + String(all_wifi_channels[ch]) + " (Next)", tftWidth - x, tftHeight - cui::ROW_FP - 3, TR_DATUM);
+                goto sniffer_redraw_done;
+            }
+            {
+#endif
+            padprintln(UIC(activeFile, uiTruncateMiddle(activeFile, tftWidth - 2 * cui::PAD, FP)));
             padprintln("Sniffer Mode: " + currentModeString());
             if (deauth) {
                 tft.setTextColor(bruceConfig.bgColor, bruceConfig.priColor);
@@ -1420,14 +1445,18 @@ void sniffer_setup() {
                                                       : ""
                     ) +
                     String(all_wifi_channels[ch]) + " (Next)",
-                tftWidth - 10,
+                UIC(tftWidth - 10, tftWidth - cui::PAD),
                 tftHeight - 18,
                 1
             );
             tft.drawString(
-                " EAPOL: " + String(num_EAPOL) + " HS: " + String(num_HS) + " ", 10, tftHeight - 18
+                " EAPOL: " + String(num_EAPOL) + " HS: " + String(num_HS) + " ", UIC(10, cui::PAD), tftHeight - 18
             );
             tft.drawCentreString("Packets " + String(packet_counter), tftWidth / 2, tftHeight - 26, 1);
+#ifdef UI_COMPACT
+            }
+        sniffer_redraw_done: (void)0;
+#endif
         }
 
         if (currentTime - lastTime > 100) tft.drawPixel(0, 0, 0);
@@ -1449,7 +1478,7 @@ void sniffer_setup() {
         // clear the message after timeout so it disappears
         if (deauth_displayed && (millis() - deauth_display_ts) > DEAUTH_MSG_MS) {
             // erase the area where the message was (fill with background)
-            tft.fillRect(DEAUTH_MSG_X, DEAUTH_MSG_Y, DEAUTH_MSG_W, DEAUTH_MSG_H, DEAUTH_BG);
+            tft.fillRect(UIC(DEAUTH_MSG_X, cui::PAD), UIC(DEAUTH_MSG_Y, tftHeight - 2 * cui::ROW_FP - 4), DEAUTH_MSG_W, DEAUTH_MSG_H, DEAUTH_BG);
             deauth_displayed = false;
             // optionally force a redraw of other UI elements next cycle
             redraw = true;

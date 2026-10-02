@@ -18,6 +18,8 @@
 #include <SD.h>
 #include <globals.h>
 
+#include "core/ui/compact.h"
+
 struct SnifferPacket {
     String address;
     String name;
@@ -27,6 +29,26 @@ struct SnifferPacket {
     String timestamp;
     int channel;
 };
+
+#ifdef UI_COMPACT
+static constexpr int snifferListTop = cui::TOP + FM * LH + 2;
+static constexpr int snifferRows = (111 - snifferListTop) / cui::ROW_FP;
+static constexpr int snifferPacketTop = snifferListTop + cui::ROW_FP;
+static constexpr int snifferPacketRows = (111 - snifferPacketTop) / cui::ROW_FP;
+
+static void snifferCompactPage(const String &title, const String &body, const String &footer) {
+    drawMainBorderWithTitle(title);
+    tft.setTextSize(FP);
+    tft.setTextColor(TFT_WHITE, bruceConfig.bgColor);
+    int y = snifferListTop;
+    for (const String &line : uiWrap(body, tftWidth - 2 * cui::PAD, FP, snifferRows)) {
+        uiDrawText(line, cui::PAD, y, TL_DATUM);
+        y += cui::ROW_FP;
+    }
+    tft.setTextColor(TFT_DARKGREY, bruceConfig.bgColor);
+    uiFootnote(footer, false);
+}
+#endif
 
 static std::vector<SnifferPacket> snifferPackets;
 static int snifferPacketCount = 0;
@@ -82,12 +104,20 @@ static String parseManufacturerData(const std::vector<uint8_t> &payload) {
 }
 
 void BLE_Sniffer() {
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        snifferCompactPage("BLE SNIFFER", "Status: READY\nSEL Start capture\nESC Exit", "");
+    } else {
+#endif
     drawMainBorderWithTitle("BLE SNIFFER");
     padprintln("");
     padprintln("Press [SEL] to start/stop capture");
     padprintln("Press [ESC] to exit");
     padprintln("");
     padprintln("Status: READY");
+#ifdef UI_COMPACT
+    }
+#endif
 
     bool isCapturing = false;
     bool firstRun = true;
@@ -131,9 +161,17 @@ void BLE_Sniffer() {
                 }
                 snifferPacketCount = 0;
                 snifferPackets.clear();
+#ifdef UI_COMPACT
+                if (uiCompact()) {
+                    snifferCompactPage("BLE SNIFFER", "Status: CAPTURING...", "Please wait");
+                } else {
+#endif
                 padprintln("");
                 padprintln("Status: CAPTURING...");
                 padprintln("Press [SEL] to stop");
+#ifdef UI_COMPACT
+                }
+#endif
 
                 NimBLEScanResults results = pSnifferScan->getResults(10 * 1000, true);
 
@@ -158,6 +196,14 @@ void BLE_Sniffer() {
 
                 pSnifferScan->stop();
                 isCapturing = false;
+#ifdef UI_COMPACT
+                if (uiCompact()) {
+                    snifferCompactPage(
+                        "BLE SNIFFER", "Status: DONE\nCaptured: " + String(snifferPacketCount) + " packets",
+                        "SEL View  NEXT Save  ESC Exit"
+                    );
+                } else {
+#endif
                 padprintln("");
                 padprintln("Status: DONE");
                 padprintln("Captured: " + String(snifferPacketCount) + " packets");
@@ -165,6 +211,9 @@ void BLE_Sniffer() {
                 padprintln("Press [SEL] to view packets");
                 padprintln("Press [NEXT] to save to SD/LittleFS");
                 padprintln("Press [ESC] to exit");
+#ifdef UI_COMPACT
+                }
+#endif
             }
         }
 
@@ -182,10 +231,33 @@ void BLE_Sniffer() {
                 tft.fillScreen(bruceConfig.bgColor);
                 drawMainBorderWithTitle("CAPTURED PACKETS");
 
-                int y = BORDER_PAD_Y + FM * LH + 4;
-                int lineH = max(14, tftHeight / 12);
-                int visibleItems = (tftHeight - y - 50) / lineH;
+                int y = UIC(BORDER_PAD_Y + FM * LH + 4, snifferListTop);
+                int lineH = UIC(max(14, tftHeight / 12), cui::ROW_FP);
+                int visibleItems = UIC((tftHeight - y - 50) / lineH, snifferPacketRows);
 
+#ifdef UI_COMPACT
+                if (uiCompact()) {
+                    tft.setTextSize(FP);
+                    tft.setTextColor(TFT_CYAN, bruceConfig.bgColor);
+                    uiDrawText("Packets: " + String(snifferPacketCount), cui::PAD, snifferListTop, TL_DATUM);
+                    for (int i = 0; i < visibleItems && scrollOffset + i < snifferPacketCount; ++i) {
+                        int index = scrollOffset + i;
+                        const SnifferPacket &packet = snifferPackets[index];
+                        int rowY = snifferPacketTop + i * lineH;
+                        bool active = index == selected;
+                        uint16_t bg = active ? bruceConfig.priColor : bruceConfig.bgColor;
+                        tft.fillRect(cui::PAD, rowY, tftWidth - 2 * cui::PAD, lineH - 1, bg);
+                        tft.setTextColor(active ? bruceConfig.bgColor : TFT_WHITE, bg);
+                        uiDrawText(
+                            uiTruncate(String(index + 1) + ". " + packet.name + " (" + String(packet.rssi) + "dB)",
+                                       tftWidth - 2 * cui::PAD - 4, FP),
+                            cui::PAD + 2, rowY + 1, TL_DATUM
+                        );
+                    }
+                    tft.setTextColor(TFT_DARKGREY, bruceConfig.bgColor);
+                    uiFootnote("PREV/NEXT Move  SEL Details  ESC Back", false);
+                } else {
+#endif
                 tft.setTextSize(FP);
                 tft.setTextColor(TFT_CYAN, bruceConfig.bgColor);
                 tft.setCursor(10, y);
@@ -223,6 +295,9 @@ void BLE_Sniffer() {
                 tft.setTextColor(TFT_DARKGREY, bruceConfig.bgColor);
                 tft.setCursor(10, tftHeight - 20);
                 tft.drawString("PREV/NEXT: Navigate  SEL: View Details  ESC: Back", 10, tftHeight - 20, 1);
+#ifdef UI_COMPACT
+                }
+#endif
 
                 if (check(NextPress)) {
                     if (selected < snifferPacketCount - 1) {
@@ -241,6 +316,24 @@ void BLE_Sniffer() {
                 if (check(SelPress)) {
                     SnifferPacket &pkt = snifferPackets[selected];
 
+#ifdef UI_COMPACT
+                    if (uiCompact()) {
+                        const int width = tftWidth - 2 * cui::PAD;
+                        String hex = pkt.payloadHex;
+                        hex.replace('\n', ' ');
+                        snifferCompactPage(
+                            "PACKET DETAILS",
+                            uiTruncate("Device: " + pkt.name, width, FP) + "\n" +
+                                uiTruncate("Address: " + pkt.address, width, FP) + "\n" +
+                                uiTruncate(
+                                    "RSSI: " + String(pkt.rssi) + " dBm  Ch: " + String(pkt.channel), width, FP
+                                ) + "\n" +
+                                uiTruncate(parseManufacturerData(pkt.payload), width, FP) + "\n" +
+                                "Payload: " + String(pkt.payload.size()) + " bytes\n" + uiTruncate(hex, width, FP),
+                            "Any key Back"
+                        );
+                    } else {
+#endif
                     drawMainBorderWithTitle("PACKET DETAILS");
                     int dy = BORDER_PAD_Y + FM * LH + 4;
                     int dlh = max(12, tftHeight / 14);
@@ -274,6 +367,9 @@ void BLE_Sniffer() {
                     tft.setTextColor(TFT_DARKGREY, bruceConfig.bgColor);
                     tft.setCursor(10, tftHeight - 20);
                     tft.drawString("Press any key to continue", 10, tftHeight - 20, 1);
+#ifdef UI_COMPACT
+                    }
+#endif
 
                     while (!check(EscPress) && !check(SelPress) && !check(PrevPress) && !check(NextPress)) {
                         delay(50);

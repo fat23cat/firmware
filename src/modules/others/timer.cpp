@@ -11,6 +11,8 @@
 #include "core/utils.h"
 #include "modules/others/audio.h"
 
+#include "core/ui/compact.h"
+
 // Constants for better maintainability
 #define DELAY_VALUE 150
 #define INPUT_POLL_DELAY 50          // Delay between input checks to save CPU
@@ -36,6 +38,13 @@ Timer::~Timer() {
 }
 
 void Timer::setup() {
+#ifdef UI_COMPACT
+    if (uiCompact()) {
+        fontSize = 3;
+        timerY = cui::TOP + FM * LH + 8;
+        underlineY = timerY + (fontSize + 1) * LH;
+    }
+#endif
     int hours = 0;
     int minutes = 0;
     int seconds = 0;

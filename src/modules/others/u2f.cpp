@@ -4,6 +4,8 @@
 #include <cstdio>
 #include <cstring>
 
+#include "core/ui/compact.h"
+
 #ifdef USB_as_HID
 
 #include "globals.h"
@@ -1669,24 +1671,24 @@ U2fHidDevice &u2fDevice() {
 
 void drawU2fStatusScreen() {
     tft.fillScreen(bruceConfig.bgColor);
-    tft.setTextSize(2);
+    tft.setTextSize(UIC(2, FM));
     tft.setTextColor(bruceConfig.priColor, bruceConfig.bgColor);
-    tft.setCursor(6, 8);
+    tft.setCursor(6, UIC(8, cui::TOP));
     tft.print("USB U2F");
 
     tft.setTextSize(1);
-    tft.setCursor(6, 36);
+    tft.setCursor(6, UIC(36, cui::TOP + FM * LH + 3));
     tft.print("Ready for registration/login");
-    tft.setCursor(6, 50);
+    tft.setCursor(6, UIC(50, cui::TOP + FM * LH + 3 + cui::ROW_FP));
     tft.print("Press center when prompted");
-    tft.setCursor(6, 64);
+    tft.setCursor(6, UIC(64, cui::TOP + FM * LH + 3 + 2 * cui::ROW_FP));
     tft.print("ESC: Back");
 }
 
 void updateU2fRuntimeInfo(const U2fHidDevice &device) {
-    tft.fillRect(0, 84, tftWidth, tftHeight - 84, bruceConfig.bgColor);
-    tft.setTextSize(2);
-    tft.setCursor(6, 94);
+    tft.fillRect(0, UIC(84, 80), tftWidth, UIC(tftHeight - 84, tftHeight - 80), bruceConfig.bgColor);
+    tft.setTextSize(UIC(2, FM));
+    tft.setCursor(6, UIC(94, 88));
     tft.print(device.waitingForPresence() ? "Confirm now" : "Waiting...");
     tft.setTextSize(1);
 }

@@ -6,7 +6,30 @@
 #include <math.h>
 #include <string.h>
 
+#include "core/ui/compact.h"
+
+#ifdef UI_COMPACT
+static void printCompactError(const char *msg, const char *stackTrace) {
+    tft.fillScreen(bruceConfig.bgColor);
+    tft.setTextSize(FM);
+    tft.setTextColor(TFT_RED, bruceConfig.bgColor);
+    uiDrawText("Error", tftWidth / 2, cui::TOP, TC_DATUM);
+    tft.setTextSize(FP);
+    tft.setTextColor(TFT_WHITE, bruceConfig.bgColor);
+    const int firstY = cui::TOP + FM * LH + 3;
+    const int maxLines = (tftHeight - firstY - cui::PAD) / cui::ROW_FP;
+    auto lines = uiWrap(String(msg ? msg : "") + "\n" + String(stackTrace ? stackTrace : ""),
+                        tftWidth - 2 * cui::PAD, FP, maxLines);
+    for (size_t i = 0; i < lines.size(); ++i)
+        uiDrawText(lines[i], cui::PAD, firstY + i * cui::ROW_FP, TL_DATUM);
+}
+#endif
+
 void print_errorMessage(const char *msg, const char *stackTrace) {
+#ifdef UI_COMPACT
+    if (uiCompact()) printCompactError(msg, stackTrace);
+    else {
+#endif
     tft.fillScreen(bruceConfig.bgColor);
     tft.setTextSize(FM);
     tft.setTextColor(TFT_RED, bruceConfig.bgColor);
@@ -16,6 +39,9 @@ void print_errorMessage(const char *msg, const char *stackTrace) {
     tft.setCursor(0, 33);
 
     tft.printf("%s\n%s\n", msg, stackTrace);
+#ifdef UI_COMPACT
+    }
+#endif
     Serial.printf("%s\n%s\n", msg, stackTrace);
     Serial.flush();
 
@@ -31,6 +57,9 @@ void js_fatal_error_handler(JSContext *ctx) {
     JSValue jsvMessage = JS_GetPropertyStr(ctx, obj, "message");
     if (strcmp(JS_ToCString(ctx, jsvMessage, &sb), "Script exited") == 0) { return; }
 
+#ifdef UI_COMPACT
+    if (!uiCompact()) {
+#endif
     tft.fillScreen(bruceConfig.bgColor);
     tft.setTextSize(FM);
     tft.setTextColor(TFT_RED, bruceConfig.bgColor);
@@ -38,6 +67,10 @@ void js_fatal_error_handler(JSContext *ctx) {
     tft.setTextColor(TFT_WHITE, bruceConfig.bgColor);
     tft.setTextSize(FP);
     tft.setCursor(0, 33);
+
+#ifdef UI_COMPACT
+    }
+#endif
 
     JSValue jsvStack = JS_GetPropertyStr(ctx, obj, "stack");
     const char *stackTrace = NULL;
