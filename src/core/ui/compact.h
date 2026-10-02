@@ -15,7 +15,7 @@
 
 // Build default used while the user has never touched the toggle (bruceConfig.uiCompact == -1).
 #ifndef UI_COMPACT_DEFAULT
-#define UI_COMPACT_DEFAULT 0
+#define UI_COMPACT_DEFAULT 1
 #endif
 
 bool uiCompactSetting(); // effective user setting: -1 -> UI_COMPACT_DEFAULT, else 0/1
