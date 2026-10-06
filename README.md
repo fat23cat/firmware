@@ -20,6 +20,29 @@ Every major feature works natively, right out of the box. Sub-GHz, NFC/RFID, IR,
 
 More custom devkit boards coming soon! Stay across our communities!
 
+## Local Cardputer Compact UI commands
+
+This checkout's Makefile builds the local **Bruce Compact UI** through the
+sibling `cardputer-firmware-manager`, using its pinned build workflow and CRUB
+image validation. Install the existing PlatformIO dependencies first.
+
+```bash
+make               # help
+make build         # no SD needed; output in manager/dist/BruceCompact.bin
+make check         # build and validate the image against the CRUB slot
+make flash         # build and stage on SD
+make stage         # stage the existing image
+make doctor        # validate mounted SD
+```
+
+`SD` defaults to `/Volumes/CARDPUTER`; use `make flash SD="/Volumes/My Card"`
+for another mount. `FIRMWARE_MANAGER_DIR` overrides the manager checkout path;
+`WORKSPACE` overrides the parent directory of the firmware repositories.
+After staging, safely eject the card, exit CRUB `usbsd`, and run `sd`, `upbrucec`,
+and `go`. `make -n flash` previews the commands. These targets stage through
+manager and do not invoke PlatformIO's USB upload or replace the shared table.
+No Node.js or npm installation is needed.
+
 ## :building_construction: How to install
 
 ### The easiest way to install Bruce is using our official Web Flasher!
